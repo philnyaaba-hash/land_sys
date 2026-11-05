@@ -35,7 +35,7 @@ export async function GET(request, { params }) {
     where: { id: userId },
     select: {
       ...USER_INCLUDE,
-      id: true, employeeId: true, email: true, name: true, phone: true, photoUrl: true,
+      id: true, employeeId: true, email: true, slackEmail: true, name: true, phone: true, photoUrl: true,
       jobTitle: true, officeLocation: true, dateEmployed: true, emergencyContactName: true,
       emergencyContactPhone: true, status: true, lastLoginAt: true, createdAt: true, updatedAt: true
     }
@@ -71,8 +71,10 @@ export async function PATCH(request, { params }) {
   }
 
   const email = input.email !== undefined ? cleanEmail(input.email) : existing.email;
+  const slackEmail = input.slackEmail !== undefined ? cleanEmail(input.slackEmail) : existing.slackEmail || '';
   const name = input.name !== undefined ? requiredString(input.name, 150) : existing.name;
   if (!name || !isEmail(email)) return NextResponse.json({ error: 'Enter a valid name and email address.' }, { status: 400 });
+  if (slackEmail && !isEmail(slackEmail)) return NextResponse.json({ error: 'Enter a valid Slack email address, or leave it blank.' }, { status: 400 });
   if (input.phone && !isPhone(input.phone)) return NextResponse.json({ error: 'Enter a valid phone number.' }, { status: 400 });
   let photoUrl;
   try {
@@ -137,6 +139,7 @@ export async function PATCH(request, { params }) {
         data: {
           name,
           email,
+          slackEmail: input.slackEmail !== undefined ? (slackEmail || null) : undefined,
           phone: input.phone !== undefined ? optionalString(input.phone, 40) : undefined,
           photoUrl,
           jobTitle: input.jobTitle !== undefined ? optionalString(input.jobTitle, 120) : undefined,
@@ -157,6 +160,7 @@ export async function PATCH(request, { params }) {
       await recordAudit(tx, auth.user.id, 'staff.updated', 'User', userId, {
         status: updated.status,
         roles: roles ? roles.map((role) => role.key) : undefined,
+        slackEmail: updated.slackEmail,
         passwordReset: Boolean(password)
       });
       return serialize(updated);

@@ -17,6 +17,7 @@ export default function StaffPanel({ user, notify, fail }) {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [slackInviteUrl, setSlackInviteUrl] = useState('');
 
   const canManage = user.permissions.includes('staff.manage');
   const canExport = user.permissions.includes('staff.export');
@@ -29,6 +30,7 @@ export default function StaffPanel({ user, notify, fail }) {
         api('/api/office/directory')
       ]);
       setStaff(staffData.users);
+      setSlackInviteUrl(staffData.slack?.inviteUrl || '');
       setDirectory(directoryData);
     } catch (reason) {
       fail(reason.message);
@@ -44,7 +46,7 @@ export default function StaffPanel({ user, notify, fail }) {
     return staff.filter((person) => {
       if (status !== 'ALL' && person.status !== status) return false;
       if (!needle) return true;
-      return [person.name, person.email, person.employeeId, person.jobTitle, person.department?.name, ...(person.roles || []).map((role) => role.name)]
+      return [person.name, person.email, person.slackEmail, person.employeeId, person.jobTitle, person.department?.name, ...(person.roles || []).map((role) => role.name)]
         .filter(Boolean).some((value) => String(value).toLowerCase().includes(needle));
     });
   }, [staff, query, status]);
@@ -103,6 +105,18 @@ export default function StaffPanel({ user, notify, fail }) {
       notify('Staff directory exported.');
     } catch (reason) {
       fail(reason.message);
+    }
+  }
+
+  async function inviteSlack(member) {
+    setBusy(true);
+    try {
+      const result = await api('/api/office/users/' + encodeURIComponent(member.id) + '/slack-invite', { method: 'POST', ...jsonBody({}) });
+      notify('Slack invite sent to ' + result.to + '.');
+    } catch (reason) {
+      fail(reason.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -170,13 +184,23 @@ export default function StaffPanel({ user, notify, fail }) {
           member={editing.member}
           user={user}
           options={directory}
+          slackInviteUrl={slackInviteUrl}
           busy={busy}
           onClose={() => setEditing(null)}
           onSave={(payload) => save(payload, editing.member)}
         />
       ) : null}
 
-      {detail ? <StaffDetail detail={detail} onClose={() => setDetail(null)} /> : null}
+      {detail ? (
+        <StaffDetail
+          detail={detail}
+          slackInviteUrl={slackInviteUrl}
+          canManage={canManage}
+          busy={busy}
+          onInvite={inviteSlack}
+          onClose={() => setDetail(null)}
+        />
+      ) : null}
 
       {canViewRoles ? (
         <p className="office-hint-line"><Icon name="shield" size={14} /> Role and permission changes are recorded in the audit history and role-change log.</p>
@@ -185,7 +209,7 @@ export default function StaffPanel({ user, notify, fail }) {
   );
 }
 
-function StaffForm({ member, user, options, busy, onClose, onSave }) {
+function StaffForm({ member, user, options, slackInviteUrl, busy, onClose, onSave }) {
   const [photo, setPhoto] = useState(undefined);
   const [preview, setPreview] = useState(member?.photoUrl || '');
   const [roleKeys, setRoleKeys] = useState(member?.roles?.map((role) => role.key) || []);
@@ -213,6 +237,7 @@ function StaffForm({ member, user, options, busy, onClose, onSave }) {
     const payload = {
       name: form.get('name'),
       email: form.get('email'),
+      slackEmail: form.get('slackEmail'),
       employeeId: form.get('employeeId'),
       jobTitle: form.get('jobTitle'),
       phone: form.get('phone'),
@@ -257,6 +282,14 @@ function StaffForm({ member, user, options, busy, onClose, onSave }) {
 
           <Field label="Full name"><input name="name" defaultValue={member?.name || ''} required maxLength={150} autoComplete="name" /></Field>
           <Field label="Email address"><input name="email" type="email" defaultValue={member?.email || ''} required maxLength={254} autoComplete="email" /></Field>
+          <Field
+            label="Slack email"
+            hint={slackInviteUrl
+              ? <>No Slack account yet? <a href={slackInviteUrl} target="_blank" rel="noreferrer">Open the workspace invite</a>.</>
+              : 'Optional. Leave blank if they do not have a Slack account yet.'}
+          >
+            <input name="slackEmail" type="email" defaultValue={member?.slackEmail || ''} maxLength={254} placeholder="name@company.slack.com" autoComplete="email" />
+          </Field>
           <Field label={member ? 'Reset password (optional)' : 'Temporary password'}><input name="password" type="password" minLength={member ? 0 : 12} required={!member} maxLength={200} autoComplete="new-password" placeholder={member ? 'Leave blank to keep current' : 'At least 12 characters'} /></Field>
           <Field label="Employee ID"><input name="employeeId" defaultValue={member?.employeeId || ''} maxLength={50} /></Field>
           <Field label="Job title"><input name="jobTitle" defaultValue={member?.jobTitle || ''} maxLength={120} /></Field>
@@ -314,7 +347,7 @@ function StaffForm({ member, user, options, busy, onClose, onSave }) {
   );
 }
 
-function StaffDetail({ detail, onClose }) {
+function StaffDetail({ detail, slackInviteUrl, canManage, busy, onInvite, onClose }) {
   const member = detail.user || detail.member;
   return (
     <Modal title={member.name} eyebrow={member.employeeId ? 'EMPLOYEE · ' + member.employeeId : 'STAFF RECORD'} description={member.jobTitle || 'Staff member'} onClose={onClose} wide>
@@ -328,11 +361,25 @@ function StaffDetail({ detail, onClose }) {
                 <span>{member.email}</span>
                 <span>{member.phone || 'No phone recorded'}</span>
                 <StatusBadge value={member.status} label={member.status === 'ACTIVE' ? 'Active' : 'Deactivated'} />
+                {canManage ? (
+                  <div className="office-profile-actions">
+                    <button
+                      type="button"
+                      className="office-button secondary"
+                      onClick={() => onInvite(member)}
+                      disabled={busy || member.status !== 'ACTIVE'}
+                    >
+                      <Icon name="mail" size={15} /> {busy ? 'Sending…' : 'Send Slack invite'}
+                    </button>
+                    {!slackInviteUrl ? <small>Set SLACK_INVITE_URL to enable Slack invitations.</small> : null}
+                  </div>
+                ) : null}
               </div>
             </div>
             <dl className="office-detail-list">
               <div><dt>Department</dt><dd>{member.department?.name || '—'}</dd></div>
               <div><dt>Manager</dt><dd>{member.manager?.name || '—'}</dd></div>
+              <div><dt>Slack</dt><dd>{member.slackEmail || 'No Slack email recorded'}</dd></div>
               <div><dt>Office</dt><dd>{member.officeLocation || '—'}</dd></div>
               <div><dt>Employed</dt><dd>{formatDate(member.dateEmployed)}</dd></div>
               <div><dt>Emergency contact</dt><dd>{member.emergencyContactName ? member.emergencyContactName + (member.emergencyContactPhone ? ' · ' + member.emergencyContactPhone : '') : '—'}</dd></div>

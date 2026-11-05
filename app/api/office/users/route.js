@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { recordAudit, requirePermission, requireSameOrigin } from '../../../../lib/office-auth';
 import { prisma } from '../../../../lib/prisma';
 import { validatePhoto } from '../../../../lib/media';
+import { slackInviteUrl } from '../../../../lib/slack';
 import { cleanEmail, isEmail, isPhone, optionalString, parseDate, requiredString, toCsv } from '../../../../lib/validation';
 
 export const runtime = 'nodejs';
@@ -11,6 +12,7 @@ const STAFF_SELECT = {
   id: true,
   employeeId: true,
   email: true,
+  slackEmail: true,
   name: true,
   phone: true,
   photoUrl: true,
@@ -58,9 +60,9 @@ export async function GET(request) {
     if (!auth.user.permissions.includes('staff.export')) {
       return NextResponse.json({ error: 'You do not have permission to export the staff directory.' }, { status: 403 });
     }
-    const headers = ['Employee ID', 'Name', 'Email', 'Phone', 'Job title', 'Department', 'Manager', 'Roles', 'Status', 'Date employed', 'Office'];
+    const headers = ['Employee ID', 'Name', 'Email', 'Slack email', 'Phone', 'Job title', 'Department', 'Manager', 'Roles', 'Status', 'Date employed', 'Office'];
     const rows = users.map((user) => [
-      user.employeeId, user.name, user.email, user.phone, user.jobTitle, user.department?.name,
+      user.employeeId, user.name, user.email, user.slackEmail, user.phone, user.jobTitle, user.department?.name,
       user.manager?.name, user.roles.map((role) => role.name).join('; '), user.status,
       user.dateEmployed ? new Date(user.dateEmployed).toISOString().slice(0, 10) : '', user.officeLocation
     ]);
@@ -71,7 +73,8 @@ export async function GET(request) {
       }
     });
   }
-  return NextResponse.json({ users });
+  const canManage = auth.user.permissions.includes('staff.manage');
+  return NextResponse.json({ users, slack: { inviteUrl: canManage ? slackInviteUrl() : null } });
 }
 
 export async function POST(request) {
@@ -86,12 +89,14 @@ export async function POST(request) {
   }
   const email = cleanEmail(input?.email);
   const name = requiredString(input?.name, 150);
+  const slackEmail = input?.slackEmail ? cleanEmail(input.slackEmail) : '';
   const password = typeof input?.password === 'string' ? input.password : '';
   const roleKeys = Array.isArray(input?.roles) ? [...new Set(input.roles.filter((key) => typeof key === 'string'))] : [];
   if (!name || !isEmail(email) || password.length < 12 || password.length > 200) {
     return NextResponse.json({ error: 'Enter a name, valid email, and a password of at least 12 characters.' }, { status: 400 });
   }
   if (!roleKeys.length) return NextResponse.json({ error: 'Assign at least one role.' }, { status: 400 });
+  if (slackEmail && !isEmail(slackEmail)) return NextResponse.json({ error: 'Enter a valid Slack email address, or leave it blank.' }, { status: 400 });
   if (input.phone && !isPhone(input.phone)) return NextResponse.json({ error: 'Enter a valid phone number.' }, { status: 400 });
   let photoUrl = null;
   try {
@@ -118,6 +123,7 @@ export async function POST(request) {
         data: {
           name,
           email,
+          slackEmail: slackEmail || null,
           passwordHash,
           phone: optionalString(input.phone, 40),
           photoUrl,
@@ -138,7 +144,11 @@ export async function POST(request) {
           data: { userId: created.id, roleId: role.id, roleKey: role.key, action: 'ASSIGNED', actorId: auth.user.id, note: 'Role assigned at account creation.' }
         });
       }
-      await recordAudit(tx, auth.user.id, 'staff.created', 'User', created.id, { roles: roles.map((role) => role.key), departmentId: department?.id || null });
+      await recordAudit(tx, auth.user.id, 'staff.created', 'User', created.id, {
+        roles: roles.map((role) => role.key),
+        departmentId: department?.id || null,
+        slackEmail: slackEmail || null
+      });
       return serialize(created);
     });
     return NextResponse.json({ user }, { status: 201 });

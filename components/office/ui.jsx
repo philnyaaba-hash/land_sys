@@ -194,6 +194,7 @@ export function Icon({ name, size = 18 }) {
     arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
     logout: <><path d="M10 4H5v16h5M15 8l4 4-4 4M9 12h10" /></>,
     bell: <><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></>,
     edit: <><path d="M4 20h4l11-11-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4" /></>,
     user: <><circle cx="12" cy="8" r="3.6" /><path d="M5 21a7 7 0 0 1 14 0" /></>,

@@ -81,6 +81,7 @@ model User {
   id                    String         @id @default(cuid())
   employeeId            String?        @unique
   email                 String         @unique
+  slackEmail            String?
   name                  String
   passwordHash          String
   phone                 String?
