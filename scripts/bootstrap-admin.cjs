@@ -1,6 +1,22 @@
+const fs = require('fs');
+const path = require('path');
 const { hash } = require('bcryptjs');
 const { PrismaNeon } = require('@prisma/adapter-neon');
 const { PrismaClient } = require('@prisma/client');
+
+// Plain Node does not load .env the way Next.js and the Prisma CLI do.
+const envFile = path.resolve(__dirname, '..', '.env');
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+    if (!match || process.env[match[1]] !== undefined) continue;
+    let value = match[2].trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    process.env[match[1]] = value;
+  }
+}
 
 const PERMISSIONS = [
   ['visitors.view', 'Visitors', 'View visitor records, appointments, and live visits'],
@@ -102,52 +118,57 @@ async function main() {
   const adapter = new PrismaNeon({ connectionString });
   const prisma = new PrismaClient({ adapter });
   try {
-    await prisma.$transaction(async (tx) => {
-      for (const [key, module, description] of PERMISSIONS) {
-        await tx.permission.upsert({
-          where: { key },
-          update: { module, description, action: key.slice(key.indexOf('.') + 1) },
-          create: { key, module, description, action: key.slice(key.indexOf('.') + 1) }
-        });
-      }
-      for (const definition of ROLE_DEFINITIONS) {
-        const role = await tx.role.upsert({
-          where: { key: definition.key },
-          update: { name: definition.name, description: definition.description, isSystem: definition.isSystem },
-          create: { key: definition.key, name: definition.name, description: definition.description, isSystem: definition.isSystem }
-        });
-        await tx.rolePermission.deleteMany({ where: { roleId: role.id } });
-        for (const permissionKey of definition.permissions) {
-          const permission = await tx.permission.findUniqueOrThrow({ where: { key: permissionKey }, select: { id: true } });
-          await tx.rolePermission.create({ data: { roleId: role.id, permissionId: permission.id } });
-        }
-      }
-      const adminRole = await tx.role.findUniqueOrThrow({ where: { key: 'SUPER_ADMIN' }, select: { id: true } });
-      const existing = await tx.user.findUnique({ where: { email }, select: { id: true } });
-      if (existing) {
-        await tx.userRole.upsert({
-          where: { userId_roleId: { userId: existing.id, roleId: adminRole.id } },
-          update: {},
-          create: { userId: existing.id, roleId: adminRole.id }
-        });
-        console.log('Administrator already exists; system roles and permissions were synchronized.');
-      } else {
-        const user = await tx.user.create({
-          data: {
-            name: process.env.BOOTSTRAP_ADMIN_NAME || 'Workspace Administrator',
-            email,
-            passwordHash: await hash(password, 12),
-            jobTitle: 'System Administrator',
-            roles: { create: { roleId: adminRole.id } }
-          },
-          select: { id: true }
-        });
-        await tx.auditEvent.create({
-          data: { actorId: user.id, action: 'system.bootstrap_admin_created', entityType: 'User', entityId: user.id }
-        });
-        console.log('Initial administrator, system roles, and permissions created.');
-      }
-    });
+    for (const [key, module, description] of PERMISSIONS) {
+      await prisma.permission.upsert({
+        where: { key },
+        update: { module, description, action: key.slice(key.indexOf('.') + 1) },
+        create: { key, module, description, action: key.slice(key.indexOf('.') + 1) }
+      });
+    }
+
+    const permissionIds = new Map(
+      (await prisma.permission.findMany({ select: { id: true, key: true } })).map((permission) => [permission.key, permission.id])
+    );
+
+    for (const definition of ROLE_DEFINITIONS) {
+      const role = await prisma.role.upsert({
+        where: { key: definition.key },
+        update: { name: definition.name, description: definition.description, isSystem: definition.isSystem },
+        create: { key: definition.key, name: definition.name, description: definition.description, isSystem: definition.isSystem }
+      });
+      await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+      const rows = definition.permissions
+        .map((permissionKey) => permissionIds.get(permissionKey))
+        .filter(Boolean)
+        .map((permissionId) => ({ roleId: role.id, permissionId }));
+      if (rows.length) await prisma.rolePermission.createMany({ data: rows, skipDuplicates: true });
+    }
+
+    const adminRole = await prisma.role.findUniqueOrThrow({ where: { key: 'SUPER_ADMIN' }, select: { id: true } });
+    const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) {
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: existing.id, roleId: adminRole.id } },
+        update: {},
+        create: { userId: existing.id, roleId: adminRole.id }
+      });
+      console.log('Administrator already exists; system roles and permissions were synchronized.');
+    } else {
+      const user = await prisma.user.create({
+        data: {
+          name: process.env.BOOTSTRAP_ADMIN_NAME || 'Workspace Administrator',
+          email,
+          passwordHash: await hash(password, 12),
+          jobTitle: 'System Administrator',
+          roles: { create: { roleId: adminRole.id } }
+        },
+        select: { id: true }
+      });
+      await prisma.auditEvent.create({
+        data: { actorId: user.id, action: 'system.bootstrap_admin_created', entityType: 'User', entityId: user.id }
+      });
+      console.log('Initial administrator, system roles, and permissions created.');
+    }
     console.log('Remove BOOTSTRAP_ADMIN_PASSWORD from the environment after this command.');
   } finally {
     await prisma.$disconnect();

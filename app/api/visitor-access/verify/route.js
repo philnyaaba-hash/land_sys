@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { checkRateLimit, clientIp } from '../../../../lib/rate-limit.mjs';
 import { verifyVisitorQrToken } from '../../../../lib/visitor-qr';
 
 export const runtime = 'nodejs';
 
 export async function POST(request) {
+  const throttle = checkRateLimit('visitor-verify:' + clientIp(request), { limit: 120, windowMs: 60 * 1000 });
+  if (!throttle.allowed) {
+    return NextResponse.json(
+      { valid: false, error: 'Too many verification attempts. Try again later.' },
+      { status: 429, headers: { 'retry-after': String(throttle.retryAfter), 'cache-control': 'no-store' } }
+    );
+  }
+
   let input;
   try {
     input = await request.json();
