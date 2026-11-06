@@ -12,7 +12,7 @@ function greeting() {
 }
 
 export default function OverviewPanel({ user, navigate }) {
-  const [data, setData] = useState({ visits: null, staff: null, reports: null, finance: null, survey: null, attendance: null });
+  const [data, setData] = useState({ visits: null, staff: null, reports: null, finance: null, survey: null, attendance: null, land: null });
   const [loading, setLoading] = useState(true);
 
   const can = (permission) => user.permissions.includes(permission);
@@ -26,7 +26,8 @@ export default function OverviewPanel({ user, navigate }) {
         can('reports.view') ? api('/api/office/reports') : Promise.resolve(null),
         can('finance.view') ? api('/api/office/finance') : Promise.resolve(null),
         can('field.view') ? api('/api/office/survey') : Promise.resolve(null),
-        api('/api/office/attendance')
+        api('/api/office/attendance'),
+        can('land.view') ? api('/api/office/land/pipeline') : Promise.resolve(null)
       ];
       const settled = await Promise.allSettled(requests);
       if (!active) return;
@@ -37,7 +38,8 @@ export default function OverviewPanel({ user, navigate }) {
         reports: value(2),
         finance: value(3),
         survey: value(4),
-        attendance: value(5)
+        attendance: value(5),
+        land: value(6)
       });
       setLoading(false);
     }
@@ -65,12 +67,30 @@ export default function OverviewPanel({ user, navigate }) {
   if (can('field.approve') && survey?.submittedReports) attention.push({ tone: 'warn', icon: 'report', title: survey.submittedReports + ' field report' + (survey.submittedReports === 1 ? '' : 's') + ' submitted for review', detail: 'Review survey findings and approve or return them.', action: () => navigate('survey') });
   if (can('finance.approve') && finance?.expensesPending) attention.push({ tone: 'info', icon: 'money', title: 'Expenses awaiting approval', detail: 'Pending claims total ' + money(finance.expensesPending, finance.currency) + '.', action: () => navigate('finance') });
 
+  const land = data.land;
+  const pendingReservations = land?.stages?.find((stage) => stage.value === 'PENDING')?.count || 0;
+  const unpostedReservations = land?.accounts?.awaitingSync || 0;
+  if (can('land.view') && (pendingReservations || unpostedReservations)) {
+    attention.push({
+      tone: pendingReservations ? 'warn' : 'info',
+      icon: 'building',
+      title: pendingReservations
+        ? pendingReservations + ' reservation request' + (pendingReservations === 1 ? '' : 's') + ' awaiting confirmation'
+        : unpostedReservations + ' reservation' + (unpostedReservations === 1 ? '' : 's') + ' not posted to accounts',
+      detail: pendingReservations
+        ? 'Confirm the payment before raising the invoice; completing a request posts the payment to finance.'
+        : 'Run Sync accounts from the land storefront to raise invoices and record payments.',
+      action: () => navigate('land')
+    });
+  }
+
   const quick = [
     { key: 'visitors', label: 'Register a visitor', detail: 'Appointments and walk-ins', icon: 'badge', show: can('visitors.register') },
     { key: 'verify', label: 'Verify a pass', detail: 'Scan a visitor QR code', icon: 'scan', show: can('visitors.view') },
     { key: 'staff', label: 'Staff directory', detail: 'People, roles, and contacts', icon: 'users', show: can('staff.view') },
     { key: 'reports', label: 'Visitor reports', detail: 'Movement and compliance', icon: 'report', show: can('reports.view') },
     { key: 'finance', label: 'Finance desk', detail: 'Invoices, payments, expenses', icon: 'money', show: can('finance.view') },
+    { key: 'land', label: 'Land storefront', detail: 'Listings, reservations, accounts', icon: 'building', show: can('land.view') },
     { key: 'survey', label: 'Field work', detail: 'Projects, parcels, and tasks', icon: 'map', show: can('field.view') },
     { key: 'settings', label: 'System settings', detail: 'Cards, email, and security', icon: 'settings', show: can('settings.manage') }
   ].filter((item) => item.show);

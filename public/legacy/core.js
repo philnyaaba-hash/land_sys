@@ -291,6 +291,11 @@ const ICONS = {
   send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
   sparkles: '<path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9Z"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  eye: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.4 0 10 6 10 6a18 18 0 0 1-3.3 3.9"/><path d="M6.6 6.6A18 18 0 0 0 2 12s3.6 6 10 6a9.9 9.9 0 0 0 4.3-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.8 12.2 8.7-8.7M15 4.5 18.5 8M17.5 2l4 4"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
   database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 15.5-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 16"/><path d="M3 21v-5h5"/>',
@@ -313,7 +318,7 @@ function initIcons(root) {
 }
 
 /* ---------------- Routing ---------------- */
-const ROUTES = ['dashboard', 'tasks', 'reports', 'office-reports', 'map', 'plots', 'office-survey', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'office-finance', 'staff', 'office-overview', 'office-compliance', 'office-visitors', 'office-verify', 'office-staff', 'office-attendance', 'office-organization', 'office-roles', 'office-audit', 'office-settings', 'settings'];
+const ROUTES = ['dashboard', 'tasks', 'reports', 'office-reports', 'map', 'plots', 'office-survey', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'office-finance', 'staff', 'office-overview', 'office-compliance', 'office-growth', 'office-clients', 'office-visitors', 'office-verify', 'office-staff', 'office-attendance', 'office-organization', 'office-roles', 'office-audit', 'office-settings', 'settings', 'client-home', 'client-portfolio', 'client-buy', 'client-resale', 'client-services', 'client-payments', 'client-documents', 'client-support'];
 const PAGE_META = {
   dashboard: ['Workspace', 'Dashboard'],
   tasks: ['Workspace', 'Tasks & Reminders'],
@@ -338,6 +343,9 @@ const PAGE_META = {
   settings: ['System', 'Workspace settings'],
   'office-overview': ['Office', 'Office overview'],
   'office-compliance': ['Office', 'Ghana compliance'],
+  'office-growth': ['Office', 'Growth & outreach'],
+  'office-clients': ['Office', 'Client desk'],
+  'office-land': ['Office', 'Land storefront'],
   'office-visitors': ['Office', 'Visitor operations'],
   'office-verify': ['Office', 'Access verification'],
   'office-staff': ['Office', 'Staff directory'],
@@ -348,12 +356,23 @@ const PAGE_META = {
   'office-survey': ['Office', 'Surveying'],
   'office-roles': ['Office', 'Roles & security'],
   'office-audit': ['Office', 'Audit history'],
-  'office-settings': ['Office', 'Settings']
+  'office-settings': ['Office', 'Settings'],
+  'client-home': ['My land', 'Overview'],
+  'client-portfolio': ['My land', 'My portfolio'],
+  'client-buy': ['My land', 'Buy land'],
+  'client-resale': ['My land', 'Resell land'],
+  'client-services': ['My land', 'Land services'],
+  'client-payments': ['My land', 'Payments'],
+  'client-documents': ['My land', 'Documents'],
+  'client-support': ['My land', 'Support']
 };
 
 const OFFICE_ROUTES = {
   'office-overview': 'overview',
   'office-compliance': 'compliance',
+  'office-growth': 'growth',
+  'office-clients': 'clients',
+  'office-land': 'land',
   'office-visitors': 'visitors',
   'office-verify': 'verify',
   'office-staff': 'staff',
@@ -364,13 +383,28 @@ const OFFICE_ROUTES = {
   'office-survey': 'survey',
   'office-roles': 'roles',
   'office-audit': 'audit',
-  'office-settings': 'settings'
+  'office-settings': 'settings',
+  'client-home': 'client-overview',
+  'client-portfolio': 'client-portfolio',
+  'client-buy': 'client-buy',
+  'client-resale': 'client-resale',
+  'client-services': 'client-services',
+  'client-payments': 'client-payments',
+  'client-documents': 'client-documents',
+  'client-support': 'client-support'
 };
+
+function defaultRoute() {
+  const user = Auth.user();
+  return user && user.roleKey === 'CLIENT' ? 'client-home' : 'dashboard';
+}
 
 function currentRoute() {
   const raw = (location.hash || '').replace(/^#\/?/, '').split('?')[0];
-  const route = ROUTES.includes(raw) ? raw : 'dashboard';
-  return canRoute(route) ? route : 'dashboard';
+  const fallback = defaultRoute();
+  const route = ROUTES.includes(raw) ? raw : fallback;
+  if (canRoute(route)) return route;
+  return canRoute(fallback) ? fallback : 'dashboard';
 }
 
 function go(route) {
@@ -417,10 +451,10 @@ function render() {
   else if (route === 'documents') html = viewEstateDocuments();
   else if (route === 'maintenance') html = viewMaintenance();
   else if (route === 'settings') html = viewSettings();
-  else if (route.indexOf('office-') === 0) html = viewOffice(route);
+  else if (route.indexOf('office-') === 0 || route.indexOf('client-') === 0) html = viewOffice(route);
 
   const view = $('#view');
-  view.classList.toggle('office-view', route.indexOf('office-') === 0);
+  view.classList.toggle('office-view', route.indexOf('office-') === 0 || route.indexOf('client-') === 0);
   view.innerHTML = html;
   if (state.lastRoute !== route) view.scrollTop = 0;
   state.lastRoute = route;
@@ -633,6 +667,11 @@ function enterWorkspace() {
   const user = Auth.user();
   if (user) document.body.dataset.role = user.id;
   Auth.hideLogin();
+
+  if (user && user.roleKey === 'CLIENT') {
+    const raw = (location.hash || '').replace(/^#\/?/, '').split('?')[0];
+    if (!raw || raw.indexOf('client-') !== 0) location.hash = '#/client-home';
+  }
 
   if (!state.selectedPlotId) {
     const demoPlot = data.plots.find((p) => p.code === 'P-014') || data.plots[0];

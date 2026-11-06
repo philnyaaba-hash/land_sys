@@ -50,7 +50,19 @@ const PERMISSIONS = [
   ['settings.manage', 'Settings', 'Manage organization and system settings'],
   ['notifications.manage', 'Settings', 'Configure, test, and review notifications'],
   ['compliance.view', 'Compliance', 'View Ghana compliance obligations and filings'],
-  ['compliance.manage', 'Compliance', 'Record filings, assign owners, and manage compliance obligations']
+  ['compliance.manage', 'Compliance', 'Record filings, assign owners, and manage compliance obligations'],
+  ['growth.view', 'Growth', 'View prospects and outreach campaigns'],
+  ['growth.manage', 'Growth', 'Manage prospects, consent records, and campaign drafts'],
+  ['growth.send', 'Growth', 'Approve and send consented outreach campaigns'],
+  ['land.view', 'Storefront', 'View the public land storefront and its listings'],
+  ['land.manage', 'Storefront', 'Create, publish and manage land listings and reservations'],
+  ['client.portal', 'Client portal', 'Open the client workspace with owned land and reservations'],
+  ['client.resell', 'Client portal', 'Submit and manage resale requests for owned land'],
+  ['client.services', 'Client portal', 'Request and track surveying, construction and land services'],
+  ['client.documents', 'Client portal', 'Add and manage personal land documents'],
+  ['client.payments', 'Client portal', 'View own invoices, receipts and payment history'],
+  ['client.view', 'Clients', 'View client profiles, resale requests and service requests'],
+  ['client.manage', 'Clients', 'Review resales, quote services and manage client records']
 ];
 
 const ALL = PERMISSIONS.map(([key]) => key);
@@ -72,7 +84,10 @@ const ROLE_DEFINITIONS = [
       'visitors.card.print', 'visitors.approve', 'visitors.manage', 'visitors.export',
       'staff.view', 'staff.export', 'organization.view', 'rooms.manage', 'cards.configure',
       'attendance.view', 'attendance.manage', 'reports.view', 'reports.export',
-      'notifications.manage', 'compliance.view', 'compliance.manage'
+      'notifications.manage', 'compliance.view', 'compliance.manage',
+      'growth.view', 'growth.manage', 'growth.send',
+      'land.view', 'land.manage',
+      'client.view', 'client.manage'
     ],
     isSystem: true
   },
@@ -80,14 +95,21 @@ const ROLE_DEFINITIONS = [
     key: 'ACCOUNTANT',
     name: 'Accountant',
     description: 'Invoices, payments, expenses, and financial reporting. No visitor or security access.',
-    permissions: ['finance.view', 'finance.manage', 'finance.export', 'reports.view', 'reports.export', 'organization.view', 'compliance.view', 'compliance.manage'],
+    permissions: ['finance.view', 'finance.manage', 'finance.export', 'reports.view', 'reports.export', 'organization.view', 'compliance.view', 'compliance.manage', 'client.view'],
     isSystem: true
   },
   {
     key: 'SURVEYOR',
     name: 'Surveyor',
     description: 'Assigned land parcels, field tasks, survey measurements, and field reports.',
-    permissions: ['field.view', 'field.manage', 'organization.view'],
+    permissions: ['field.view', 'field.manage', 'organization.view', 'client.view'],
+    isSystem: true
+  },
+  {
+    key: 'CLIENT',
+    name: 'Land client',
+    description: 'Buy, hold, resell and service land from a private client workspace.',
+    permissions: ['client.portal', 'client.resell', 'client.services', 'client.documents', 'client.payments'],
     isSystem: true
   },
   {

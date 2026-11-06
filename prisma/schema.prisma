@@ -131,6 +131,16 @@ model User {
   uploadedAttachments   Attachment[]   @relation("AttachmentUploader")
   complianceOwned       ComplianceObligation[] @relation("ComplianceOwner")
   complianceFiled       ComplianceObligation[] @relation("ComplianceFiler")
+  prospectsOwned        Prospect[]     @relation("ProspectOwner")
+  prospectsCreated      Prospect[]     @relation("ProspectCreator")
+  prospectActivities    ProspectActivity[] @relation("ProspectActivityUser")
+  growthCampaigns       OutreachCampaign[] @relation("CampaignCreator")
+  growthApprovals       OutreachCampaign[] @relation("CampaignApprover")
+  clientProfile         ClientProfile?
+  clientDocumentsVerified ClientDocument[] @relation("ClientDocumentVerifier")
+  resalesReviewed       ResaleRequest[] @relation("ResaleReviewer")
+  servicesAssigned      ServiceRequest[] @relation("ServiceAssignee")
+  serviceUpdates        ServiceUpdate[] @relation("ServiceUpdateAuthor")
 }
 
 model Department {
@@ -550,4 +560,332 @@ model ComplianceObligation {
   @@unique([catalogKey, period])
   @@index([dueDate, status])
   @@index([category, status])
+}
+
+model Prospect {
+  id                String    @id @default(cuid())
+  company           String
+  contactName       String?
+  jobTitle          String?
+  email             String?   @unique
+  phone             String?
+  website           String?
+  location          String?
+  industry          String?
+  source            String    @default("MANUAL")
+  sourceDetail      String?
+  stage             String    @default("NEW")
+  score             Int       @default(0)
+  scoreBand         String    @default("LOW")
+  scoreReasons      Json?
+  consentStatus     String    @default("UNKNOWN")
+  consentPurpose    String?
+  consentAt         DateTime?
+  consentEvidence   String?   @db.Text
+  lawfulBasis       String?
+  suppressed        Boolean   @default(false)
+  suppressedAt      DateTime?
+  suppressionReason String?
+  researchNotes     String?   @db.Text
+  notes             String?   @db.Text
+  lastContactedAt   DateTime?
+  repliedAt         DateTime?
+  lastReplySummary  String?   @db.Text
+  ownerId           String?
+  createdById       String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  owner             User?     @relation("ProspectOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdBy         User?     @relation("ProspectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  activities        ProspectActivity[]
+  campaignRecipients CampaignRecipient[]
+
+  @@index([stage, score])
+  @@index([consentStatus, suppressed])
+  @@index([ownerId, updatedAt])
+}
+
+model ProspectActivity {
+  id         String   @id @default(cuid())
+  prospectId String
+  userId     String?
+  type       String
+  summary    String
+  detail     String?  @db.Text
+  createdAt  DateTime @default(now())
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  user       User?    @relation("ProspectActivityUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([prospectId, createdAt])
+}
+
+model OutreachCampaign {
+  id           String   @id @default(cuid())
+  name         String
+  subject      String
+  preview      String?
+  body         String   @db.Text
+  status       String   @default("DRAFT")
+  segmentStage String?
+  minScore     Int      @default(0)
+  approvedById String?
+  approvedAt   DateTime?
+  sentAt       DateTime?
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  approvedBy   User?    @relation("CampaignApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  createdBy    User?    @relation("CampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  recipients   CampaignRecipient[]
+
+  @@index([status, createdAt])
+}
+
+model CampaignRecipient {
+  id         String   @id @default(cuid())
+  campaignId String
+  prospectId String
+  email      String
+  name       String?
+  status     String   @default("QUEUED")
+  error      String?  @db.Text
+  messageId  String?
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+  campaign   OutreachCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, prospectId])
+  @@index([campaignId, status])
+}
+
+model LandListing {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  region        String
+  district      String
+  community     String?
+  landType      String   @default("RESIDENTIAL")
+  titleStatus   String   @default("REGISTERED")
+  sizeAcres     Float
+  price         Int
+  pricePerAcre Int?
+  currency      String   @default("GHS")
+  summary       String   @db.Text
+  description   String   @db.Text
+  highlights    String[]
+  imageUrls     String[]
+  coordinates   String?
+  sellerName    String?
+  sellerPhone   String?
+  sellerEmail   String?
+  verified      Boolean  @default(false)
+  featured      Boolean  @default(false)
+  status        String   @default("PUBLISHED")
+  views         Int      @default(0)
+  publishedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  reservations  LandReservation[]
+  inquiries     LandInquiry[]
+  holdings      LandHolding[]
+  resales       ResaleRequest[]
+  watches       LandWatch[]
+
+  @@index([status, featured, publishedAt])
+  @@index([region, landType, price])
+}
+
+model LandReservation {
+  id            String   @id @default(cuid())
+  reference     String   @unique
+  listingId     String
+  buyerName     String
+  email         String
+  phone         String
+  amount        Int
+  currency      String   @default("GHS")
+  paymentMethod String   @default("BANK_TRANSFER")
+  status        String   @default("PENDING")
+  note          String?  @db.Text
+  clientId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  listing       LandListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  client        ClientProfile? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([listingId, status])
+  @@index([email, createdAt])
+  @@index([clientId, status])
+}
+
+model LandInquiry {
+  id        String   @id @default(cuid())
+  listingId String?
+  type      String   @default("BUYING")
+  name      String
+  email     String
+  phone     String?
+  message   String   @db.Text
+  status    String   @default("NEW")
+  createdAt DateTime @default(now())
+  listing   LandListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([listingId, createdAt])
+}
+
+model ClientProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  clientCode   String   @unique
+  companyName  String?
+  ghanaCard    String?
+  address      String?
+  region       String?
+  city         String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  holdings     LandHolding[]
+  documents    ClientDocument[]
+  resales      ResaleRequest[]
+  services     ServiceRequest[]
+  watches      LandWatch[]
+  reservations LandReservation[]
+
+  @@index([createdAt])
+}
+
+model LandHolding {
+  id               String   @id @default(cuid())
+  clientId         String
+  listingId        String?
+  title            String
+  region           String
+  district         String
+  community        String?
+  sizeAcres        Float
+  acquisitionDate  DateTime?
+  acquisitionPrice Int?
+  currentValue     Int?
+  titleStatus      String   @default("PENDING")
+  titleNumber      String?
+  coordinates      String?
+  status           String   @default("ACTIVE")
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  client           ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  listing          LandListing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  documents        ClientDocument[]
+  resales          ResaleRequest[]
+  services         ServiceRequest[]
+
+  @@index([clientId, status])
+  @@index([listingId])
+}
+
+model ClientDocument {
+  id           String   @id @default(cuid())
+  clientId     String
+  holdingId    String?
+  name         String
+  type         String   @default("OTHER")
+  fileUrl      String   @db.Text
+  issuedAt     DateTime?
+  status       String   @default("PENDING")
+  verifiedById String?
+  verifiedAt   DateTime?
+  createdAt    DateTime @default(now())
+  client       ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  holding      LandHolding?  @relation(fields: [holdingId], references: [id], onDelete: SetNull)
+  verifiedBy   User?         @relation("ClientDocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId, createdAt])
+  @@index([holdingId])
+  @@index([status])
+}
+
+model ResaleRequest {
+  id           String   @id @default(cuid())
+  reference    String   @unique
+  clientId     String
+  holdingId    String?
+  listingId    String?  @unique
+  title        String
+  askingPrice  Int
+  sizeAcres    Float
+  region       String
+  district     String
+  community    String?
+  description  String   @db.Text
+  status       String   @default("SUBMITTED")
+  reviewNote   String?  @db.Text
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  client       ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  holding      LandHolding?  @relation(fields: [holdingId], references: [id], onDelete: SetNull)
+  listing      LandListing?  @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  reviewedBy   User?         @relation("ResaleReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId, status])
+  @@index([status, createdAt])
+}
+
+model ServiceRequest {
+  id            String   @id @default(cuid())
+  reference     String   @unique
+  clientId      String
+  holdingId     String?
+  type          String   @default("SURVEY")
+  title         String
+  description   String   @db.Text
+  location      String?
+  priority      String   @default("NORMAL")
+  status        String   @default("SUBMITTED")
+  quoteAmount   Int?
+  invoiceNumber String?
+  scheduledFor  DateTime?
+  assignedToId  String?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  client        ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  holding       LandHolding?  @relation(fields: [holdingId], references: [id], onDelete: SetNull)
+  assignedTo    User?         @relation("ServiceAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  updates       ServiceUpdate[]
+
+  @@index([clientId, status])
+  @@index([status, createdAt])
+  @@index([assignedToId, status])
+}
+
+model ServiceUpdate {
+  id         String   @id @default(cuid())
+  requestId  String
+  authorId   String?
+  authorRole String   @default("OFFICE")
+  message    String   @db.Text
+  createdAt  DateTime @default(now())
+  request    ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author     User?          @relation("ServiceUpdateAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt])
+}
+
+model LandWatch {
+  id        String   @id @default(cuid())
+  clientId  String
+  listingId String
+  createdAt DateTime @default(now())
+  client    ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  listing   LandListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, listingId])
+  @@index([listingId])
 }

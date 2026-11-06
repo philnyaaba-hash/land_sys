@@ -41,6 +41,12 @@ const nextConfig = {
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
+  },
+  async redirects() {
+    return [
+      { source: '/land', destination: '/', permanent: true },
+      { source: '/land/:path*', destination: '/:path*', permanent: true }
+    ];
   }
 };
 export default nextConfig;

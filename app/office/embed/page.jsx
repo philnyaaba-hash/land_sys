@@ -14,7 +14,7 @@ export default async function OfficeEmbedPage({ searchParams }) {
         <section className="office-embed-denied">
           <h1>Sign in required</h1>
           <p>Your workspace session has ended. Return to the dashboard to sign in, then open this page again.</p>
-          <a className="office-button primary" href="/" target="_top">Return to sign in</a>
+          <a className="office-button primary" href="/dashboard" target="_top">Return to sign in</a>
         </section>
       </main>
     );

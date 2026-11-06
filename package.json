@@ -11,7 +11,9 @@
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:bootstrap-admin": "node scripts/bootstrap-admin.cjs"
+    "db:bootstrap-admin": "node scripts/bootstrap-admin.cjs",
+    "db:seed-land": "node scripts/seed-land.cjs",
+    "seed:demo": "node scripts/seed-demo-accounts.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

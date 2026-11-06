@@ -34,10 +34,6 @@ export default function LegacyApp() {
       // The scripts expect to run before DOMContentLoaded; fire it once they are ready.
       document.dispatchEvent(new Event('DOMContentLoaded'));
     })().catch(console.error);
-
-    if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(console.error);
-    }
   }, []);
 
   return (

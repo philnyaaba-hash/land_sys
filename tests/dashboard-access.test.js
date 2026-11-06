@@ -43,3 +43,35 @@ test('any recognised office permission opens the overview', () => {
   assert.equal(canViewPanel({ permissions: ['field.view'] }, 'overview'), true);
   assert.equal(canViewPanel({ permissions: ['attendance.manage'] }, 'overview'), true);
 });
+
+test('the land storefront panel follows the land.view permission', () => {
+  assert.ok(OFFICE_PANELS.land);
+  assert.equal(canViewPanel({ permissions: ['land.view'] }, 'land'), true);
+  assert.equal(canViewPanel({ permissions: ['land.manage'] }, 'land'), true);
+  assert.equal(canViewPanel({ permissions: ['growth.view'] }, 'land'), false);
+  const manager = resolveDashboardAccess(['OFFICE_MANAGER']);
+  assert.ok(manager.permissions.includes('land.view'));
+  assert.ok(manager.permissions.includes('land.manage'));
+});
+
+test('client-only accounts reach client panels and nothing else', () => {
+  const client = {
+    permissions: ['client.portal', 'client.resell', 'client.services', 'client.documents', 'client.payments'],
+    roles: [{ key: 'CLIENT' }]
+  };
+  assert.equal(canViewPanel(client, 'client-overview'), true);
+  assert.equal(canViewPanel(client, 'client-resale'), true);
+  assert.equal(canViewPanel(client, 'client-payments'), true);
+  assert.equal(canViewPanel(client, 'overview'), false);
+  assert.equal(canViewPanel(client, 'attendance'), false);
+  assert.equal(canViewPanel(client, 'clients'), false);
+  assert.equal(canViewPanel(client, 'finance'), false);
+
+  const manager = {
+    permissions: ['land.view', 'client.view', 'client.manage'],
+    roles: [{ key: 'OFFICE_MANAGER' }]
+  };
+  assert.equal(canViewPanel(manager, 'overview'), true);
+  assert.equal(canViewPanel(manager, 'clients'), true);
+  assert.equal(canViewPanel(manager, 'client-overview'), false);
+});

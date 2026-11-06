@@ -1,4 +1,5 @@
 import { Instrument_Sans } from 'next/font/google';
+import OfflineBanner from '../components/OfflineBanner';
 import './globals.css';
 
 const ui = Instrument_Sans({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
@@ -21,7 +22,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={ui.variable}>
-      <body className="auth-locked">{children}</body>
+      <body className="auth-locked">
+        <OfflineBanner />
+        {children}
+      </body>
     </html>
   );
 }

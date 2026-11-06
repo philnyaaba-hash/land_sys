@@ -4,8 +4,12 @@ import { useState } from 'react';
 import { canViewPanel, OFFICE_PANELS } from '../../lib/office-panels';
 import AttendancePanel from './attendance-panel';
 import AuditPanel from './audit-panel';
+import ClientPanel from './client-panel';
+import ClientsPanel from './clients-panel';
 import CompliancePanel from './compliance-panel';
 import FinancePanel from './finance-panel';
+import GrowthPanel from './growth-panel';
+import LandPanel from './land-panel';
 import OrganizationPanel from './organization-panel';
 import OverviewPanel from './overview-panel';
 import ReportsPanel from './reports-panel';
@@ -28,6 +32,17 @@ const PANELS = {
   finance: FinancePanel,
   survey: SurveyPanel,
   compliance: CompliancePanel,
+  growth: GrowthPanel,
+  land: LandPanel,
+  clients: ClientsPanel,
+  'client-overview': (props) => <ClientPanel initialTab="overview" {...props} />,
+  'client-portfolio': (props) => <ClientPanel initialTab="portfolio" {...props} />,
+  'client-buy': (props) => <ClientPanel initialTab="buy" {...props} />,
+  'client-resale': (props) => <ClientPanel initialTab="resale" {...props} />,
+  'client-services': (props) => <ClientPanel initialTab="services" {...props} />,
+  'client-payments': (props) => <ClientPanel initialTab="payments" {...props} />,
+  'client-documents': (props) => <ClientPanel initialTab="documents" {...props} />,
+  'client-support': (props) => <ClientPanel initialTab="support" {...props} />,
   roles: RolesPanel,
   audit: AuditPanel,
   settings: SettingsPanel
@@ -55,7 +70,7 @@ export default function OfficePanelView({ initialUser, panel }) {
           <section className="office-embed-denied">
             <h1>Restricted</h1>
             <p>Your office role cannot open {def.label.toLowerCase()}. Ask an administrator if you need access.</p>
-            <button className="office-button secondary" type="button" onClick={signOut}>Switch office account</button>
+            <a className="office-button secondary" href="/dashboard" target="_top">Back to workspace</a>
           </section>
         )}
       </div>
