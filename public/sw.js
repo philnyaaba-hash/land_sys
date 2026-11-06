@@ -1,6 +1,6 @@
 /* LandLedger — offline shell for the staff dashboard only.
    The public storefront is never cached or served offline: it stays live. */
-const VERSION = 'landledger-next-v11';
+const VERSION = 'landledger-next-v13';
 const SHELL_CACHE = VERSION + '-shell';
 const RUNTIME_CACHE = VERSION + '-runtime';
 const OFFLINE_PAGE = '/offline';

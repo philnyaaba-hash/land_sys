@@ -318,7 +318,7 @@ function initIcons(root) {
 }
 
 /* ---------------- Routing ---------------- */
-const ROUTES = ['dashboard', 'tasks', 'reports', 'office-reports', 'map', 'plots', 'office-survey', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'office-finance', 'staff', 'office-overview', 'office-compliance', 'office-growth', 'office-clients', 'office-visitors', 'office-verify', 'office-staff', 'office-attendance', 'office-organization', 'office-roles', 'office-audit', 'office-settings', 'settings', 'client-home', 'client-portfolio', 'client-buy', 'client-resale', 'client-services', 'client-payments', 'client-documents', 'client-support'];
+const ROUTES = ['dashboard', 'tasks', 'reports', 'office-reports', 'map', 'plots', 'office-survey', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'office-finance', 'staff', 'office-overview', 'office-compliance', 'office-growth', 'office-clients', 'office-land', 'office-visitors', 'office-verify', 'office-staff', 'office-attendance', 'office-organization', 'office-roles', 'office-audit', 'office-settings', 'settings', 'client-home', 'client-portfolio', 'client-buy', 'client-resale', 'client-services', 'client-payments', 'client-documents', 'client-support'];
 const PAGE_META = {
   dashboard: ['Workspace', 'Dashboard'],
   tasks: ['Workspace', 'Tasks & Reminders'],
@@ -402,9 +402,24 @@ function defaultRoute() {
 function currentRoute() {
   const raw = (location.hash || '').replace(/^#\/?/, '').split('?')[0];
   const fallback = defaultRoute();
+  const user = Auth.user();
+  if (user && user.roleKey === 'CLIENT') {
+    return raw.indexOf('client-') === 0 && ROUTES.includes(raw) && canRoute(raw) ? raw : fallback;
+  }
   const route = ROUTES.includes(raw) ? raw : fallback;
   if (canRoute(route)) return route;
   return canRoute(fallback) ? fallback : 'dashboard';
+}
+
+// /dashboard, /dashboard# and /dashboard#/dashboard all mean the same panel.
+// Write the resolved route into the hash so the address always names the panel.
+function canonicalHash() {
+  const route = currentRoute();
+  const raw = (location.hash || '').replace(/^#\/?/, '').split('?')[0];
+  if (raw !== route) {
+    history.replaceState(null, '', location.pathname + location.search + '#/' + route);
+  }
+  return route;
 }
 
 function go(route) {
@@ -668,11 +683,6 @@ function enterWorkspace() {
   if (user) document.body.dataset.role = user.id;
   Auth.hideLogin();
 
-  if (user && user.roleKey === 'CLIENT') {
-    const raw = (location.hash || '').replace(/^#\/?/, '').split('?')[0];
-    if (!raw || raw.indexOf('client-') !== 0) location.hash = '#/client-home';
-  }
-
   if (!state.selectedPlotId) {
     const demoPlot = data.plots.find((p) => p.code === 'P-014') || data.plots[0];
     state.selectedPlotId = demoPlot ? demoPlot.id : null;
@@ -681,7 +691,7 @@ function enterWorkspace() {
     const recent = S.decoratedSales(data).sort((a, b) => S.parseDate(b.date) - S.parseDate(a.date))[0];
     state.receiptId = recent ? recent.id : null;
   }
-  state.route = currentRoute();
+  state.route = canonicalHash();
   hideUserMenu();
   render();
 }
@@ -707,6 +717,7 @@ function bindWorkspaceEvents() {
     hideSearch();
     hideNotif();
     hideUserMenu();
+    canonicalHash();
     render();
   });
   window.addEventListener('resize', () => {
@@ -797,7 +808,7 @@ function initApp() {
       hideNotif();
       hideUserMenu();
       closeMobileMenu();
-      if (location.hash !== '#/dashboard') location.hash = '#/dashboard';
+      if (location.hash) history.replaceState(null, '', location.pathname + location.search);
       toast('Signed out.');
     }
   });
