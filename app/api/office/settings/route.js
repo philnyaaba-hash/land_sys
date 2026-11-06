@@ -15,11 +15,36 @@ function text(value, max, fallback) {
   return typeof value === 'string' ? value.trim().slice(0, max) : fallback;
 }
 
+const LOGO_MARK = /^[\p{L}\p{N}]{1,2}$/u;
+
+function normalizedWebsite(value) {
+  const raw = text(value, 200, '');
+  if (!raw) return '';
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : 'https://' + raw;
+  try {
+    const url = new URL(candidate);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function isValidTimeZone(value) {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function sanitize(group, value) {
   const defaults = DEFAULT_SETTINGS[group];
   const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   if (group === 'organization') {
     const email = cleanEmail(input.email);
+    const logoLetter = text(input.logoLetter, 2, defaults.logoLetter).toUpperCase();
+    const timezone = text(input.timezone, 80, defaults.timezone);
     return {
       ...defaults,
       name: requiredString(input.name, 120) || defaults.name,
@@ -27,10 +52,10 @@ function sanitize(group, value) {
       address: text(input.address, 300, defaults.address),
       phone: text(input.phone, 40, defaults.phone),
       email: isEmail(email) ? email : '',
-      website: text(input.website, 200, defaults.website),
-      logoLetter: text(input.logoLetter, 2, defaults.logoLetter).toUpperCase() || defaults.logoLetter,
+      website: normalizedWebsite(input.website),
+      logoLetter: LOGO_MARK.test(logoLetter) ? logoLetter : defaults.logoLetter,
       brandColor: /^#[0-9a-fA-F]{6}$/.test(input.brandColor || '') ? input.brandColor : defaults.brandColor,
-      timezone: text(input.timezone, 80, defaults.timezone)
+      timezone: isValidTimeZone(timezone) ? timezone : defaults.timezone
     };
   }
   if (group === 'card') {
@@ -138,6 +163,24 @@ export async function PATCH(request) {
   if (!SETTING_KEYS.includes(group)) return NextResponse.json({ error: 'Unknown settings group.' }, { status: 400 });
   const auth = await requireAnyPermission(GROUP_PERMISSIONS[group] || ['settings.manage']);
   if (auth.response) return auth.response;
+  if (group === 'organization') {
+    const value = input.value && typeof input.value === 'object' && !Array.isArray(input.value) ? input.value : {};
+    if (value.email && !isEmail(cleanEmail(value.email))) {
+      return NextResponse.json({ error: 'Enter a valid organization email address.' }, { status: 400 });
+    }
+    if (value.website && !normalizedWebsite(value.website)) {
+      return NextResponse.json({ error: 'Enter a valid website address, for example https://asanteland.com.' }, { status: 400 });
+    }
+    if (value.timezone && !isValidTimeZone(String(value.timezone).trim())) {
+      return NextResponse.json({ error: 'Choose a valid timezone, for example Africa/Accra.' }, { status: 400 });
+    }
+    if (value.logoLetter && !LOGO_MARK.test(String(value.logoLetter).trim())) {
+      return NextResponse.json({ error: 'The logo mark must be one or two letters or numbers.' }, { status: 400 });
+    }
+    if (value.brandColor && !/^#[0-9a-fA-F]{6}$/.test(String(value.brandColor))) {
+      return NextResponse.json({ error: 'Choose a six-digit brand color such as #125b38.' }, { status: 400 });
+    }
+  }
   const value = sanitize(group, input.value);
   await prisma.$transaction(async (tx) => {
     await saveSetting(tx, group, value, auth.user.id);

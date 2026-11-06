@@ -320,6 +320,7 @@ function handleAction(action, el) {
       break;
     case 'sign-out':
       Auth.logout();
+      fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
       break;
     case 'go-settings':
       hideUserMenu();

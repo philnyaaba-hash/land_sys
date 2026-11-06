@@ -6,7 +6,9 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
+  // Office panels render in a same-origin iframe inside the main dashboard,
+  // so framing is limited to this origin rather than blocked outright.
+  "frame-ancestors 'self'",
   "object-src 'none'",
   "img-src 'self' data: blob:",
   "media-src 'self' blob:",
@@ -22,7 +24,7 @@ const contentSecurityPolicy = [
 const securityHeaders = [
   { key: 'Content-Security-Policy', value: contentSecurityPolicy },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()' },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },

@@ -14,6 +14,26 @@ const GROUPS = [
   { key: 'security', label: 'Visitor security', icon: 'shield', permissions: ['settings.manage'] }
 ];
 
+const BRAND_PRESETS = [
+  { label: 'Forest', value: '#125b38' },
+  { label: 'Ocean', value: '#1f4e79' },
+  { label: 'Charcoal', value: '#33413a' },
+  { label: 'Gold', value: '#9a6b1f' },
+  { label: 'Burgundy', value: '#7a2e2e' }
+];
+
+const COMMON_TIMEZONES = ['Africa/Accra', 'Africa/Lagos', 'Africa/Nairobi', 'Africa/Johannesburg', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Singapore', 'Australia/Sydney', 'UTC'];
+
+const TIMEZONES = (() => {
+  try {
+    return typeof Intl !== 'undefined' && typeof Intl.supportedValuesOf === 'function'
+      ? Intl.supportedValuesOf('timeZone')
+      : COMMON_TIMEZONES;
+  } catch {
+    return COMMON_TIMEZONES;
+  }
+})();
+
 export default function SettingsPanel({ user, notify, fail }) {
   const [settings, setSettings] = useState(null);
   const [meta, setMeta] = useState({});
@@ -92,39 +112,190 @@ function FormActions({ busy, label }) {
   return <footer className="office-modal-actions"><button className="office-button primary" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save ' + label}</button></footer>;
 }
 
+function organizationForm(value) {
+  return {
+    name: value.name || '',
+    legalName: value.legalName || '',
+    email: value.email || '',
+    phone: value.phone || '',
+    website: value.website || '',
+    timezone: value.timezone || 'Africa/Accra',
+    logoLetter: value.logoLetter || '',
+    brandColor: value.brandColor || '#125b38',
+    address: value.address || ''
+  };
+}
+
+function withScheme(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : 'https://' + text;
+}
+
+function isWebUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+function isTimeZone(value) {
+  if (!value) return false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function localTimeLabel(zone) {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      timeZone: zone,
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date());
+  } catch {
+    return 'Invalid timezone';
+  }
+}
+
 function OrganizationSettings({ value, busy, onSave }) {
+  const [form, setForm] = useState(() => organizationForm(value));
+  const [error, setError] = useState('');
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setForm(organizationForm(value));
+    setError('');
+    setDirty(false);
+  }, [value]);
+
+  function update(key, next) {
+    setForm((current) => ({ ...current, [key]: next }));
+    setDirty(true);
+    setError('');
+  }
+
+  function reset() {
+    setForm(organizationForm(value));
+    setError('');
+    setDirty(false);
+  }
+
   function submit(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    onSave({
-      name: form.get('name'),
-      legalName: form.get('legalName'),
-      address: form.get('address'),
-      phone: form.get('phone'),
-      email: form.get('email'),
-      website: form.get('website'),
-      logoLetter: form.get('logoLetter'),
-      brandColor: form.get('brandColor'),
-      timezone: form.get('timezone')
-    });
+    const name = form.name.trim();
+    const email = form.email.trim().toLowerCase();
+    const website = withScheme(form.website);
+    const timezone = form.timezone.trim();
+    const logoLetter = form.logoLetter.trim().toUpperCase();
+    const brandColor = form.brandColor.trim();
+    if (!name) return setError('Enter the organization display name.');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError('Enter a valid organization email address.');
+    if (website && !isWebUrl(website)) return setError('Enter a valid website address, for example https://asanteland.com.');
+    if (!isTimeZone(timezone)) return setError('Choose a valid timezone, for example Africa/Accra.');
+    if (!/^[\p{L}\p{N}]{1,2}$/u.test(logoLetter)) return setError('The logo mark must be one or two letters or numbers.');
+    if (!/^#[0-9a-fA-F]{6}$/.test(brandColor)) return setError('Choose a six-digit brand color such as #125b38.');
+    onSave({ ...form, name, email, website, timezone, logoLetter, brandColor });
   }
+
+  const mark = (form.logoLetter || form.name.trim().charAt(0) || 'A').toUpperCase();
+  const website = withScheme(form.website);
+  const websiteValid = website && isWebUrl(website);
+  const pickerColor = /^#[0-9a-fA-F]{6}$/.test(form.brandColor) ? form.brandColor : '#125b38';
+  const localTime = localTimeLabel(form.timezone);
+
   return (
-    <form onSubmit={submit}>
-      <Panel title="Organization identity" subtitle="Used on visitor cards, printed badges, and portal branding.">
-        <div className="office-form-grid">
-          <Field label="Display name"><input name="name" defaultValue={value.name} required maxLength={120} /></Field>
-          <Field label="Legal name"><input name="legalName" defaultValue={value.legalName} maxLength={150} /></Field>
-          <Field label="Email"><input name="email" type="email" defaultValue={value.email || ''} maxLength={254} /></Field>
-          <Field label="Phone"><input name="phone" defaultValue={value.phone || ''} maxLength={40} /></Field>
-          <Field label="Website"><input name="website" defaultValue={value.website || ''} maxLength={200} placeholder="https://" /></Field>
-          <Field label="Timezone"><input name="timezone" defaultValue={value.timezone} maxLength={80} placeholder="Africa/Accra" /></Field>
-          <Field label="Logo letter" hint="Shown in the brand mark on cards."><input name="logoLetter" defaultValue={value.logoLetter} maxLength={2} /></Field>
-          <Field label="Brand color"><input name="brandColor" type="color" defaultValue={value.brandColor} /></Field>
-          <Field label="Address" full><textarea name="address" defaultValue={value.address || ''} rows={2} maxLength={300} /></Field>
+    <div className="office-identity-layout">
+      <form className="office-identity-form" onSubmit={submit}>
+        <Panel title="Organization identity" subtitle="Used on visitor cards, printed badges, and portal branding.">
+          <div className="office-form-grid">
+            <Field label="Display name" hint="Shown in the portal header and on visitor cards.">
+              <input value={form.name} onChange={(event) => update('name', event.target.value)} required maxLength={120} autoComplete="organization" />
+            </Field>
+            <Field label="Legal name" hint="Printed in email footers and receipts.">
+              <input value={form.legalName} onChange={(event) => update('legalName', event.target.value)} maxLength={150} autoComplete="organization" />
+            </Field>
+            <Field label="Email">
+              <input value={form.email} onChange={(event) => update('email', event.target.value)} type="email" maxLength={254} autoComplete="email" />
+            </Field>
+            <Field label="Phone">
+              <input value={form.phone} onChange={(event) => update('phone', event.target.value)} type="tel" maxLength={40} autoComplete="tel" />
+            </Field>
+            <Field label="Website" hint="If you leave out the scheme, https:// is added when you save.">
+              <input value={form.website} onChange={(event) => update('website', event.target.value)} onBlur={() => update('website', withScheme(form.website))} maxLength={200} placeholder="https://asanteland.com" inputMode="url" autoComplete="url" />
+            </Field>
+            <Field label="Timezone" hint="IANA zone used for printed cards and audit timestamps.">
+              <input value={form.timezone} onChange={(event) => update('timezone', event.target.value)} list="office-timezones" maxLength={80} placeholder="Africa/Accra" autoComplete="off" spellCheck={false} />
+            </Field>
+            <Field label="Logo mark" hint="One or two letters or numbers shown in the brand badge.">
+              <input value={form.logoLetter} onChange={(event) => update('logoLetter', event.target.value.toUpperCase().replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2))} maxLength={2} placeholder={mark} />
+            </Field>
+            <Field label="Brand color" hint="Applied to the portal accent and visitor cards.">
+              <div className="office-color-field">
+                <input type="color" value={pickerColor} onChange={(event) => update('brandColor', event.target.value)} aria-label="Pick brand color" />
+                <input value={form.brandColor} onChange={(event) => update('brandColor', event.target.value)} maxLength={7} aria-label="Brand color hex value" spellCheck={false} />
+              </div>
+              <div className="office-color-swatches">
+                {BRAND_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    style={{ background: preset.value }}
+                    onClick={() => update('brandColor', preset.value)}
+                    aria-label={'Use ' + preset.label + ' brand color'}
+                    aria-pressed={form.brandColor.toLowerCase() === preset.value}
+                  />
+                ))}
+              </div>
+            </Field>
+            <Field label="Address" hint="Street, city, and country. Printed on badges and email footers." full>
+              <textarea value={form.address} onChange={(event) => update('address', event.target.value)} rows={3} maxLength={300} />
+            </Field>
+          </div>
+          <datalist id="office-timezones">
+            {TIMEZONES.map((zone) => <option key={zone} value={zone} />)}
+          </datalist>
+        </Panel>
+        {error ? <p className="office-error" role="alert">{error}</p> : null}
+        <footer className="office-modal-actions">
+          <button className="office-button secondary" type="button" onClick={reset} disabled={busy || !dirty}>Reset</button>
+          <button className="office-button primary" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save organization'}</button>
+        </footer>
+      </form>
+
+      <aside className="office-identity-preview" aria-label="Organization identity preview">
+        <div className="office-identity-preview-head">
+          <strong>Live preview</strong>
+          <span>Brand</span>
         </div>
-      </Panel>
-      <FormActions busy={busy} label="organization" />
-    </form>
+        <div className="office-brand-preview" style={{ '--brand': form.brandColor }}>
+          <div className="office-brand-row">
+            <div className="office-brand-mark" aria-hidden="true">{mark}</div>
+            <div className="office-brand-copy">
+              <strong>{form.name || 'Organization name'}</strong>
+              <span>{form.legalName || 'Legal name not set'}</span>
+            </div>
+          </div>
+          <dl className="office-brand-details">
+            <div><dt>Email</dt><dd>{form.email || '—'}</dd></div>
+            <div><dt>Phone</dt><dd>{form.phone || '—'}</dd></div>
+            <div><dt>Website</dt><dd>{websiteValid ? <a href={website} target="_blank" rel="noreferrer">{website.replace(/^https?:\/\//i, '')}</a> : form.website || '—'}</dd></div>
+            <div><dt>Address</dt><dd>{form.address || '—'}</dd></div>
+            <div><dt>Timezone</dt><dd>{form.timezone || '—'}</dd></div>
+            <div><dt>Local time</dt><dd>{localTime}</dd></div>
+          </dl>
+        </div>
+        <p className="office-identity-note">This identity appears on visitor cards, printed badges, and portal branding. Changes show here before you save.</p>
+      </aside>
+    </div>
   );
 }
 

@@ -314,7 +314,7 @@ function initIcons(root) {
 }
 
 /* ---------------- Routing ---------------- */
-const ROUTES = ['dashboard', 'tasks', 'reports', 'map', 'plots', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'staff', 'settings'];
+const ROUTES = ['dashboard', 'tasks', 'reports', 'office-reports', 'map', 'plots', 'office-survey', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'office-finance', 'staff', 'office-overview', 'office-visitors', 'office-verify', 'office-staff', 'office-attendance', 'office-organization', 'office-roles', 'office-audit', 'office-settings', 'settings'];
 const PAGE_META = {
   dashboard: ['Workspace', 'Dashboard'],
   tasks: ['Workspace', 'Tasks & Reminders'],
@@ -336,7 +336,34 @@ const PAGE_META = {
   'finance-statements': ['Finance', 'Financial statements'],
   'finance-audit': ['Finance', 'Periods & audit'],
   staff: ['Business', 'Staff & HRM'],
-  settings: ['System', 'Settings']
+  settings: ['System', 'Workspace settings'],
+  'office-overview': ['Office', 'Office overview'],
+  'office-visitors': ['Office', 'Visitor operations'],
+  'office-verify': ['Office', 'Access verification'],
+  'office-staff': ['Office', 'Staff directory'],
+  'office-attendance': ['Office', 'Attendance'],
+  'office-organization': ['Office', 'Departments & rooms'],
+  'office-reports': ['Office', 'Visitor reports'],
+  'office-finance': ['Office', 'Finance desk'],
+  'office-survey': ['Office', 'Surveying'],
+  'office-roles': ['Office', 'Roles & security'],
+  'office-audit': ['Office', 'Audit history'],
+  'office-settings': ['Office', 'Settings']
+};
+
+const OFFICE_ROUTES = {
+  'office-overview': 'overview',
+  'office-visitors': 'visitors',
+  'office-verify': 'verify',
+  'office-staff': 'staff',
+  'office-attendance': 'attendance',
+  'office-organization': 'organization',
+  'office-reports': 'reports',
+  'office-finance': 'finance',
+  'office-survey': 'survey',
+  'office-roles': 'roles',
+  'office-audit': 'audit',
+  'office-settings': 'settings'
 };
 
 function currentRoute() {
@@ -356,6 +383,12 @@ function go(route) {
   hideUserMenu();
   if (location.hash === '#/' + route) render();
   else location.hash = '#/' + route;
+}
+
+function viewOffice(route) {
+  const panel = OFFICE_ROUTES[route] || 'overview';
+  const title = (PAGE_META[route] || PAGE_META['office-overview'])[1];
+  return '<iframe class="office-embed-frame" src="/office/embed?panel=' + panel + '" title="' + title + '" loading="eager" allow="camera; clipboard-write"></iframe>';
 }
 
 function render() {
@@ -383,8 +416,10 @@ function render() {
   else if (route === 'documents') html = viewEstateDocuments();
   else if (route === 'maintenance') html = viewMaintenance();
   else if (route === 'settings') html = viewSettings();
+  else if (route.indexOf('office-') === 0) html = viewOffice(route);
 
   const view = $('#view');
+  view.classList.toggle('office-view', route.indexOf('office-') === 0);
   view.innerHTML = html;
   if (state.lastRoute !== route) view.scrollTop = 0;
   state.lastRoute = route;
@@ -721,7 +756,7 @@ function initApp() {
       toast('Signed out.');
     }
   });
-  bindWorkspaceEvents(); bindDensityEvents();
+  bindWorkspaceEvents(); bindDensityEvents(); initDensity();
   if (Auth.isAuthenticated()) enterWorkspace();
   else Auth.showLogin();
 }
@@ -732,16 +767,17 @@ document.addEventListener('DOMContentLoaded', initApp);
 function initDensity() {
 
   const saved = localStorage.getItem('landledger.density');
+  const allowed = ['compact', 'comfortable', 'spacious'];
 
-  if (saved) {
+  if (saved && allowed.includes(saved)) {
 
     state.density = saved;
 
     document.body.classList.add('density-' + saved);
 
-    updateDensityButtons();
-
   }
+
+  updateDensityButtons();
 
 }
 
@@ -781,9 +817,16 @@ function updateDensityButtons() {
 
   $$('.density-btn').forEach(btn => {
 
-    btn.classList.toggle('active', btn.dataset.density === state.density);
+    const active = btn.dataset.density === state.density;
+
+    btn.classList.toggle('active', active);
+
+    btn.setAttribute('aria-pressed', String(active));
 
   });
+
+  const toggle = $('.density-toggle');
+  if (toggle) toggle.dataset.densityState = state.density;
 
 }
 

@@ -1,5 +1,5 @@
 /* LandLedger — Service Worker for PWA offline support */
-const CACHE_NAME = 'landledger-next-v1';
+const CACHE_NAME = 'landledger-next-v2';
 const ASSETS = [
   '/',
   '/assets/brand-logo.jpg',
@@ -29,6 +29,9 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== location.origin) return;
 
   if (request.method !== 'GET') return;
+
+  // Authenticated pages and APIs must never be served from the cache.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/office/')) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {

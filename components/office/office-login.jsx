@@ -17,11 +17,20 @@ export default function OfficeLogin() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email: form.get('email'), password: form.get('password') })
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Sign in failed.');
-      window.location.assign('/office');
+      const text = await response.text();
+      let result = {};
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch {
+        result = {};
+      }
+      if (!response.ok) throw new Error(result.error || 'Sign in failed (' + response.status + ').');
+      if (!result.ok) throw new Error('The server returned an unexpected response. Try again.');
+      const next = new URLSearchParams(window.location.search).get('next');
+      window.location.assign(next && next.startsWith('/') && !next.startsWith('//') ? next : '/#/office-overview');
     } catch (reason) {
-      setError(reason.message || 'Sign in failed.');
+      const unreachable = /fetch|network/i.test(reason.message || '');
+      setError(unreachable ? 'Cannot reach the server. Check that it is running, then try again.' : reason.message || 'Sign in failed.');
       setBusy(false);
     }
   }
