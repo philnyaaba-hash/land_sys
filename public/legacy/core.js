@@ -73,7 +73,6 @@ const state = {
   notifOpen: false,
     notifOpen: false,
   userMenuOpen: false,
-  density: 'comfortable'
 };
 
 const PAGE_SIZE = { plots: 12, sales: 12, buyers: 9 };
@@ -314,7 +313,7 @@ function initIcons(root) {
 }
 
 /* ---------------- Routing ---------------- */
-const ROUTES = ['dashboard', 'tasks', 'reports', 'office-reports', 'map', 'plots', 'office-survey', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'office-finance', 'staff', 'office-overview', 'office-visitors', 'office-verify', 'office-staff', 'office-attendance', 'office-organization', 'office-roles', 'office-audit', 'office-settings', 'settings'];
+const ROUTES = ['dashboard', 'tasks', 'reports', 'office-reports', 'map', 'plots', 'office-survey', 'leads', 'sales', 'receipts', 'buyers', 'complaints', 'documents', 'maintenance', 'accounting', 'finance', 'finance-accounts', 'finance-journals', 'finance-ledger', 'finance-statements', 'finance-audit', 'office-finance', 'staff', 'office-overview', 'office-compliance', 'office-visitors', 'office-verify', 'office-staff', 'office-attendance', 'office-organization', 'office-roles', 'office-audit', 'office-settings', 'settings'];
 const PAGE_META = {
   dashboard: ['Workspace', 'Dashboard'],
   tasks: ['Workspace', 'Tasks & Reminders'],
@@ -338,6 +337,7 @@ const PAGE_META = {
   staff: ['Business', 'Staff & HRM'],
   settings: ['System', 'Workspace settings'],
   'office-overview': ['Office', 'Office overview'],
+  'office-compliance': ['Office', 'Ghana compliance'],
   'office-visitors': ['Office', 'Visitor operations'],
   'office-verify': ['Office', 'Access verification'],
   'office-staff': ['Office', 'Staff directory'],
@@ -353,6 +353,7 @@ const PAGE_META = {
 
 const OFFICE_ROUTES = {
   'office-overview': 'overview',
+  'office-compliance': 'compliance',
   'office-visitors': 'visitors',
   'office-verify': 'verify',
   'office-staff': 'staff',
@@ -446,6 +447,9 @@ function updateChrome() {
     el.hidden = !allowed;
     el.classList.toggle('active', allowed && el.dataset.route === route);
   });
+  $$('.nav-section').forEach((section) => {
+    section.hidden = !$$('.nav-item', section).some((item) => !item.hidden);
+  });
   const systemLabel = $('#systemNavLabel');
   if (systemLabel) systemLabel.hidden = !can('settings.view');
   const topNew = $('#topNewSale');
@@ -458,6 +462,8 @@ function updateChrome() {
   const orgAvatar = $('#orgAvatar');
   if (orgAvatar) orgAvatar.textContent = orgInitials;
   const user = Auth.user();
+  const workspaceRole = $('#workspaceRole');
+  if (workspaceRole) workspaceRole.textContent = user ? user.label : 'Workspace';
   const userInitials = user ? user.initials : orgInitials;
   const avatar = $('#avatarBtn');
   if (avatar) {
@@ -756,81 +762,15 @@ function initApp() {
       toast('Signed out.');
     }
   });
-  bindWorkspaceEvents(); bindDensityEvents(); initDensity();
-  if (Auth.isAuthenticated()) enterWorkspace();
-  else Auth.showLogin();
+  bindWorkspaceEvents();
+  Auth.showChecking();
+  Auth.restore().then((restored) => {
+    if (restored) enterWorkspace();
+    else Auth.showLogin();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
-// Density & Sidebar enhancements
-
-function initDensity() {
-
-  const saved = localStorage.getItem('landledger.density');
-  const allowed = ['compact', 'comfortable', 'spacious'];
-
-  if (saved && allowed.includes(saved)) {
-
-    state.density = saved;
-
-    document.body.classList.add('density-' + saved);
-
-  }
-
-  updateDensityButtons();
-
-}
-
-
-
-function bindDensityEvents() {
-
-  $$('.density-btn').forEach(btn => {
-
-    btn.addEventListener('click', () => {
-
-      const density = btn.dataset.density;
-
-      if (density === state.density) return;
-
-      state.density = density;
-
-      document.body.classList.remove('density-compact', 'density-comfortable', 'density-spacious');
-
-      document.body.classList.add('density-' + density);
-
-      localStorage.setItem('landledger.density', density);
-
-      updateDensityButtons();
-
-      toast('Density: ' + density.charAt(0).toUpperCase() + density.slice(1));
-
-    });
-
-  });
-
-}
-
-
-
-function updateDensityButtons() {
-
-  $$('.density-btn').forEach(btn => {
-
-    const active = btn.dataset.density === state.density;
-
-    btn.classList.toggle('active', active);
-
-    btn.setAttribute('aria-pressed', String(active));
-
-  });
-
-  const toggle = $('.density-toggle');
-  if (toggle) toggle.dataset.densityState = state.density;
-
-}
-
-
 
 function updateSidebarStats() {
 

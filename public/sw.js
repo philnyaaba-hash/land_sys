@@ -1,5 +1,5 @@
 /* LandLedger — Service Worker for PWA offline support */
-const CACHE_NAME = 'landledger-next-v2';
+const CACHE_NAME = 'landledger-next-v3';
 const ASSETS = [
   '/',
   '/assets/brand-logo.jpg',

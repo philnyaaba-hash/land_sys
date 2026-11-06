@@ -129,6 +129,8 @@ model User {
   fieldReports          FieldReport[]  @relation("ReportAuthor")
   approvedReports       FieldReport[]  @relation("ReportApprover")
   uploadedAttachments   Attachment[]   @relation("AttachmentUploader")
+  complianceOwned       ComplianceObligation[] @relation("ComplianceOwner")
+  complianceFiled       ComplianceObligation[] @relation("ComplianceFiler")
 }
 
 model Department {
@@ -521,4 +523,31 @@ model Attachment {
   uploadedBy   User     @relation("AttachmentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
 
   @@index([entityType, entityId])
+}
+
+model ComplianceObligation {
+  id          String    @id @default(cuid())
+  catalogKey  String
+  period      String
+  title       String
+  authority   String
+  category    String
+  statute     String?
+  frequency   String
+  dueDate     DateTime?
+  status      String    @default("PENDING")
+  reference   String?
+  notes       String?   @db.Text
+  evidenceUrl String?
+  ownerId     String?
+  filedAt     DateTime?
+  filedById   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  owner       User?     @relation("ComplianceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  filedBy     User?     @relation("ComplianceFiler", fields: [filedById], references: [id], onDelete: SetNull)
+
+  @@unique([catalogKey, period])
+  @@index([dueDate, status])
+  @@index([category, status])
 }

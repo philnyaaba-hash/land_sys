@@ -48,7 +48,9 @@ const PERMISSIONS = [
   ['reports.view', 'Reports', 'View operational reports'],
   ['reports.export', 'Reports', 'Export operational reports'],
   ['settings.manage', 'Settings', 'Manage organization and system settings'],
-  ['notifications.manage', 'Settings', 'Configure, test, and review notifications']
+  ['notifications.manage', 'Settings', 'Configure, test, and review notifications'],
+  ['compliance.view', 'Compliance', 'View Ghana compliance obligations and filings'],
+  ['compliance.manage', 'Compliance', 'Record filings, assign owners, and manage compliance obligations']
 ];
 
 const ALL = PERMISSIONS.map(([key]) => key);
@@ -70,7 +72,7 @@ const ROLE_DEFINITIONS = [
       'visitors.card.print', 'visitors.approve', 'visitors.manage', 'visitors.export',
       'staff.view', 'staff.export', 'organization.view', 'rooms.manage', 'cards.configure',
       'attendance.view', 'attendance.manage', 'reports.view', 'reports.export',
-      'notifications.manage'
+      'notifications.manage', 'compliance.view', 'compliance.manage'
     ],
     isSystem: true
   },
@@ -78,7 +80,7 @@ const ROLE_DEFINITIONS = [
     key: 'ACCOUNTANT',
     name: 'Accountant',
     description: 'Invoices, payments, expenses, and financial reporting. No visitor or security access.',
-    permissions: ['finance.view', 'finance.manage', 'finance.export', 'reports.view', 'reports.export', 'organization.view'],
+    permissions: ['finance.view', 'finance.manage', 'finance.export', 'reports.view', 'reports.export', 'organization.view', 'compliance.view', 'compliance.manage'],
     isSystem: true
   },
   {

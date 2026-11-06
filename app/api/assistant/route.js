@@ -13,7 +13,7 @@ export async function GET() {
   const user = await currentUser();
   if (!user) {
     return NextResponse.json(
-      { authenticated: false, signInUrl: '/office/login?next=/' },
+      { authenticated: false, signInUrl: '/' },
       { headers: NO_STORE }
     );
   }
@@ -39,7 +39,7 @@ export async function POST(request) {
   const user = await currentUser();
   if (!user) {
     return NextResponse.json(
-      { error: 'Sign in to the office workspace to query live data.', signInUrl: '/office/login?next=/' },
+      { error: 'Sign in to the workspace to query live data.', signInUrl: '/' },
       { status: 401, headers: NO_STORE }
     );
   }

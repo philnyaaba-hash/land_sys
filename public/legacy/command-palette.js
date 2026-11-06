@@ -26,7 +26,6 @@ const COMMANDS = [
   { id: 'import-data', title: 'Import backup', desc: 'Restore from JSON backup', shortcut: '', action: 'import-data', icon: 'upload', roles: ['admin'] },
   { id: 'reset-demo', title: 'Reset demo data', desc: 'Restore sample workspace', shortcut: '', action: 'reset-demo', icon: 'refresh', roles: ['admin'] },
   { id: 'toggle-theme', title: 'Toggle theme', desc: 'Switch light/dark/system', shortcut: 'T', action: 'toggle-theme', icon: 'sparkles', roles: ['admin', 'manager', 'sales', 'viewer'] },
-  { id: 'toggle-density', title: 'Toggle density', desc: 'Switch compact/comfortable/spacious', shortcut: 'D', action: 'toggle-density', icon: 'sparkles', roles: ['admin', 'manager', 'sales', 'viewer'] },
   { id: 'shortcuts', title: 'Keyboard shortcuts', desc: 'Show all shortcuts', shortcut: '?', action: 'shortcuts', icon: 'keyboard', roles: ['admin', 'manager', 'sales', 'viewer'] },
   { id: 'global-search', title: 'Global search', desc: 'Search buyers, plots, receipts', shortcut: '⌘K', action: 'global-search', icon: 'search', roles: ['admin', 'manager', 'sales', 'viewer'] },
 ];
@@ -51,7 +50,6 @@ const SHORTCUTS = [
     { keys: ['⌘', 'S'], desc: 'Staff & HRM' },
     { keys: ['⌘', ','], desc: 'Settings' },
     { keys: ['T'], desc: 'Toggle theme' },
-    { keys: ['D'], desc: 'Toggle density' },
     { keys: ['?'], desc: 'Show shortcuts' },
     { keys: ['⌘', 'K'], desc: 'Global search / Command palette' },
   ]},
@@ -224,19 +222,6 @@ function toggleTheme() {
   toast('Theme: ' + next.charAt(0).toUpperCase() + next.slice(1));
 }
 
-function toggleDensity() {
-  const densities = ['compact', 'comfortable', 'spacious'];
-  const current = state.density || 'comfortable';
-  const idx = densities.indexOf(current);
-  const next = densities[(idx + 1) % densities.length];
-  state.density = next;
-  document.body.classList.remove('density-compact', 'density-comfortable', 'density-spacious');
-  document.body.classList.add('density-' + next);
-  localStorage.setItem('landledger.density', next);
-  updateDensityButtons();
-  toast('Density: ' + next.charAt(0).toUpperCase() + next.slice(1));
-}
-
 function initTheme() {
   const saved = localStorage.getItem('landledger.theme');
   const html = document.documentElement;
@@ -278,13 +263,6 @@ function bindCommandPaletteEvents() {
       if (!active || !active.matches('input, textarea, select, [contenteditable]')) {
         e.preventDefault();
         toggleTheme();
-      }
-    }
-    if (key === 'd' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      const active = document.activeElement;
-      if (!active || !active.matches('input, textarea, select, [contenteditable]')) {
-        e.preventDefault();
-        toggleDensity();
       }
     }
     if ((e.metaKey || e.ctrlKey) && /^[0-9]$/.test(e.key)) {

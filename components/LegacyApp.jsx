@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import FloatingAssistant from './assistant/floating-assistant';
 import shellMarkup from './shell-markup';
 
 // Load order matters: each file builds on globals from the ones before it.
@@ -42,9 +41,6 @@ export default function LegacyApp() {
   }, []);
 
   return (
-    <>
-      <div id="legacy-root" dangerouslySetInnerHTML={{ __html: shellMarkup }} suppressHydrationWarning />
-      <FloatingAssistant />
-    </>
+    <div id="legacy-root" dangerouslySetInnerHTML={{ __html: shellMarkup }} suppressHydrationWarning />
   );
 }

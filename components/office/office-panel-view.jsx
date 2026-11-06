@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { canViewPanel, OFFICE_PANELS } from '../../lib/office-panels';
 import AttendancePanel from './attendance-panel';
 import AuditPanel from './audit-panel';
+import CompliancePanel from './compliance-panel';
 import FinancePanel from './finance-panel';
 import OrganizationPanel from './organization-panel';
 import OverviewPanel from './overview-panel';
@@ -26,6 +27,7 @@ const PANELS = {
   reports: ReportsPanel,
   finance: FinancePanel,
   survey: SurveyPanel,
+  compliance: CompliancePanel,
   roles: RolesPanel,
   audit: AuditPanel,
   settings: SettingsPanel
@@ -42,22 +44,9 @@ export default function OfficePanelView({ initialUser, panel }) {
     if (PANELS[key]) window.location.assign('/office/embed?panel=' + key);
   }
 
-  async function signOut() {
-    try {
-      await fetch('/api/auth/session', { method: 'DELETE' });
-    } catch {
-      /* Reloading the panel will show the office sign-in if the session is gone. */
-    }
-    window.location.reload();
-  }
-
   return (
     <main className="office-embed">
       <div className="office-main">
-        <div className="office-embed-session">
-          <span>Office access · <strong>{initialUser.name}</strong></span>
-          <button type="button" onClick={signOut}>Sign out of office</button>
-        </div>
         {error ? <div className="office-alert error" role="alert"><span>{error}</span><button type="button" aria-label="Dismiss" onClick={() => setError('')}><Icon name="close" size={13} /></button></div> : null}
         {notice ? <div className="office-alert success" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss" onClick={() => setNotice('')}><Icon name="close" size={13} /></button></div> : null}
         {allowed ? (

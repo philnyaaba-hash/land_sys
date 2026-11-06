@@ -315,12 +315,8 @@ function handleAction(action, el) {
   if (requiredPermission && !requirePermission(requiredPermission)) return;
 
   switch (action) {
-    case 'demo-login':
-      Auth.login(el.dataset.role || '');
-      break;
     case 'sign-out':
       Auth.logout();
-      fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
       break;
     case 'go-settings':
       hideUserMenu();
