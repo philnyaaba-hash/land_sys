@@ -164,6 +164,25 @@ h1, h2, h3, h4, p { margin: 0; }
   background: linear-gradient(90deg, transparent, rgba(20, 155, 82, 0.3), transparent);
 }
 
+.brand-link {
+  display: inline-flex;
+  border-radius: 12px;
+  transition: transform 0.2s ease;
+}
+
+.brand-link:hover {
+  transform: translateY(-1px);
+}
+
+.brand-link:active {
+  transform: scale(0.99);
+}
+
+.brand-link:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 3px;
+}
+
 .brand-logo {
   width: 156px;
   height: 98px;
