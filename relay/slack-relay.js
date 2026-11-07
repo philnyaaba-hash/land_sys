@@ -358,7 +358,7 @@ async function buildDigestText() {
   ] = await Promise.all([
     prisma.landInquiry.count({ where: { createdAt: { gte: today } } }),
     prisma.landReservation.count({ where: { createdAt: { gte: today }, status: 'CONFIRMED' } }),
-    prisma.payment.aggregate({ where: { receivedAt: { gte: today } }, _sum: { amount: true } }),
+    prisma.payment.aggregate({ where: { createdAt: { gte: today }, status: 'PAID' }, _sum: { amount: true } }),
     prisma.expense.count({ where: { createdAt: { gte: today } } }),
     prisma.visit.count({ where: { status: 'EXPECTED', expectedArrival: { gte: today, lt: tomorrow } } })
   ]);

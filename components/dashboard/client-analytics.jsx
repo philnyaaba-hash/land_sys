@@ -38,17 +38,17 @@ export default function ClientAnalytics({ clients }) {
                 <th>Client</th>
                 <th>Region</th>
                 <th className="num">Holdings</th>
-                <th className="num">Reservations</th>
+                <th className="num">Inquiries</th>
                 <th className="num">Joined</th>
               </tr>
             </thead>
             <tbody>
               {clients.recentClients.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.companyName || c.user.name}</td>
+                  <td>{c.name}</td>
                   <td>{c.region || '—'}</td>
                   <td className="num">{c._count.holdings}</td>
-                  <td className="num">{c._count.reservations}</td>
+                  <td className="num">{c._count.inquiries}</td>
                   <td className="num muted">{new Date(c.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}

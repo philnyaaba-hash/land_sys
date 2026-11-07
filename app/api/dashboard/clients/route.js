@@ -22,11 +22,12 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
-      companyName: true,
+      name: true,
+      email: true,
+      phone: true,
       region: true,
       createdAt: true,
-      user: { select: { name: true, email: true, phone: true } },
-      _count: { select: { holdings: true, reservations: true } }
+      _count: { select: { holdings: true, inquiries: true } }
     }
   });
 

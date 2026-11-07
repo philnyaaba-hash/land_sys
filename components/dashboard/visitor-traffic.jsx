@@ -1,6 +1,5 @@
 /* Visitor traffic today widget — server component */
 export default function VisitorTraffic({ traffic }) {
-  return (
     <section className="panel">
       <h2 className="panel-title">Visitor traffic today</h2>
       <div className="traffic-stats">
