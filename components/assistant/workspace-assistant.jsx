@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './workspace-assistant.module.css';
@@ -15,6 +15,8 @@ const TOPIC_LABELS = {
   audit: 'Audit history',
   clients: 'Client desk',
   pipeline: 'Land storefront',
+  land: 'Land records',
+  service: 'Service requests',
   overview: 'Workspace overview',
   help: 'Help'
 };
@@ -25,9 +27,10 @@ const ROUTE_TOPICS = [
   [/^#\/(office-finance|finance)/, 'finance'],
   [/^#\/office-survey/, 'survey'],
   [/^#\/(office-clients|client-portfolio|buyers)/, 'clients'],
-  [/^#\/(office-land|map|plots)/, 'pipeline'],
+  [/^#\/(office-land|map|plots)/, 'land'],
   [/^#\/(office-staff|staff)/, 'staff'],
-  [/^#\/office-audit/, 'audit']
+  [/^#\/office-audit/, 'audit'],
+  [/^#\/office-service/, 'service']
 ];
 
 function ChatIcon() {
@@ -48,6 +51,24 @@ function SendIcon() {
   );
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function ThumbIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 15v4a3 3 0 0 0 3 3l5-2V3a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5a2 2 0 0 0 2-2z" />
+    </svg>
+  );
+}
+
 export default function WorkspaceAssistant() {
   const [status, setStatus] = useState(null);
   const [open, setOpen] = useState(false);
@@ -56,6 +77,8 @@ export default function WorkspaceAssistant() {
   const [input, setInput] = useState('');
   const [pending, setPending] = useState(false);
   const [routeTopic, setRouteTopic] = useState(null);
+  const [rawData, setRawData] = useState(null);
+  const [feedbackMap, setFeedbackMap] = useState({});
   const launcherRef = useRef(null);
   const inputRef = useRef(null);
   const logRef = useRef(null);
@@ -66,6 +89,7 @@ export default function WorkspaceAssistant() {
     setSuggestions([]);
     setInput('');
     setPending(false);
+    setRawData(null);
     try { sessionStorage.removeItem(HISTORY_KEY); } catch { /* private mode */ }
   }, []);
 
@@ -104,9 +128,32 @@ export default function WorkspaceAssistant() {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(HISTORY_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved.messages)) setMessages(saved.messages.slice(-MAX_MESSAGES));
+      if (!raw) {
+        // Demo conversation for first-time users
+        const demoConversation = [
+          {
+            role: 'assistant',
+            text: 'Visitor operations\nAttendance\nStaff directory\nClient desk\nLand storefront\nWorkspace overview\n\nWhich visits are awaiting approval?\n1 visitor on site right now:\n• Phil nyaaba, in since 15:30\n1 visit is past the expected check-out time.\n1 visit recorded today.\nBreakdown: expected 1.',
+            topic: 'visitors',
+            generatedBy: 'local',
+            time: new Date().toLocaleTimeString(),
+            id: 'demo-1'
+          },
+          {
+            role: 'assistant',
+            text: 'Who is on site right now?\nHow many visitors today?\nWhich visits are awaiting approval?\nAsk about visitors, finance, attendance…',
+            topic: 'overview',
+            generatedBy: 'local',
+            time: new Date().toLocaleTimeString(),
+            id: 'demo-2'
+          }
+        ];
+        setMessages(demoConversation);
+        sessionStorage.setItem(HISTORY_KEY, JSON.stringify({ messages: demoConversation.slice(-MAX_MESSAGES) }));
+      } else {
+        const saved = JSON.parse(raw);
+        if (Array.isArray(saved.messages)) setMessages(saved.messages.slice(-MAX_MESSAGES));
+      }
     } catch { /* corrupted entry: ignore */ }
   }, []);
 
@@ -128,7 +175,6 @@ export default function WorkspaceAssistant() {
     return () => window.removeEventListener('hashchange', applyRoute);
   }, []);
 
-  // With no conversation yet, lead with prompts that match the page the user is on.
   useEffect(() => {
     if (!open || messages.length || !status) return;
     const topicPrompts = routeTopic && status.prompts ? status.prompts[routeTopic] : null;
@@ -167,6 +213,7 @@ export default function WorkspaceAssistant() {
     setInput('');
     setMessages((current) => [...current, { role: 'user', text }]);
     setPending(true);
+    setRawData(null);
     try {
       const res = await fetch('/api/assistant', {
         method: 'POST',
@@ -179,19 +226,46 @@ export default function WorkspaceAssistant() {
         setMessages((current) => [...current, { role: 'assistant', text, error: true }]);
         return;
       }
-      setMessages((current) => [
-        ...current,
-        { role: 'assistant', text: data.answer || 'I could not find that in the live office data.', topic: data.topic }
-      ]);
+      setMessages((current) => [...current, {
+        role: 'assistant',
+        text: data.answer || 'I could not find that in the live office data.',
+        topic: data.topic
+      }]);
       setSuggestions((data.suggestions || []).slice(0, 3));
     } catch {
-      setMessages((current) => [
-        ...current, { role: 'assistant', text: 'Network problem — the answer could not be retrieved.', error: true }
-      ]);
+      setMessages((current) => [...current, { role: 'assistant', text: 'Network problem — the answer could not be retrieved.', error: true }]);
     } finally {
       setPending(false);
     }
   }, [pending]);
+
+  const copyToClipboard = useCallback((text) => {
+    navigator.clipboard.writeText(text).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    });
+  }, []);
+
+  const submitFeedback = useCallback(async (messageId, rating) => {
+    setFeedbackMap((prev) => ({ ...prev, [messageId]: rating }));
+    try {
+      await fetch('/api/assistant', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messageId, rating })
+      });
+    } catch {
+      setFeedbackMap((prev) => ({ ...prev, [messageId]: undefined }));
+    }
+  }, []);
+
+  const toggleRawData = useCallback((message) => {
+    setRawData(rawData && rawData.id === message.id ? null : message);
+  }, [rawData]);
 
   if (!status) return null;
 
@@ -211,11 +285,14 @@ export default function WorkspaceAssistant() {
       </button>
 
       {open && (
-        <section className={styles.panel} role="dialog" aria-label="Workspace assistant" data-ll-assistant-panel="">
+        <section className={styles.panel} role="dialog" aria-modal="true" aria-label="Workspace assistant">
           <header className={styles.head}>
-            <div>
-              <strong>Workspace assistant</strong>
-              <small>Answers from live office data</small>
+            <div className={styles.headTitle}>
+              <span className={styles.headIcon}><ChatIcon /></span>
+              <div>
+                <strong className={styles.headName}>Workspace Assistant</strong>
+                <span className={styles.headSub}>Live office database • read-only</span>
+              </div>
             </div>
             <div className={styles.headActions}>
               {messages.length > 0 && (
@@ -249,68 +326,100 @@ export default function WorkspaceAssistant() {
 
             {messages.map((message, index) => (
               <div key={index} className={message.role === 'user' ? styles.userRow : styles.botRow}>
+                <div className={styles.msgHeader}>
+                  {message.role === 'user' ? <span className={styles.msgRole}>You</span> : <span className={styles.msgRole}>Assistant</span>}
+                  <span className={styles.msgTime}>{message.time}</span>
+                </div>
                 <div className={
                   message.role === 'user'
                     ? styles.userBubble
                     : (message.error ? styles.errBubble : styles.botBubble)
                 }>
                   {message.text}
+                  {message.topic && TOPIC_LABELS[message.topic]
+                    && <span className={styles.tag}>{TOPIC_LABELS[message.topic]}</span>}
+                  {message.generatedBy && message.generatedBy !== 'local'
+                    && <span className={styles.tag tagAi}>{message.generatedBy}</span>}
+                  {message.elapsedMs != null
+                    && <span className={styles.tag tagMeta}>{message.elapsedMs}ms</span>}
                 </div>
-                {message.topic && TOPIC_LABELS[message.topic]
-                  && <span className={styles.tag}>{TOPIC_LABELS[message.topic]}</span>}
+
+                {message.role === 'assistant' && !message.error && (
+                  <div className={styles.msgActions}>
+                    <button type="button" className={styles.actionBtn} title="Copy" onClick={() => copyToClipboard(message.text)}>
+                      <CopyIcon />
+                    </button>
+                    {message.data && (
+                      <button type="button" className={styles.actionBtn} title="Show raw data" onClick={() => toggleRawData(message)}>
+                        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none"
+                          stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+                        </svg>
+                      </button>
+                    )}
+                    <button type="button" className={styles.actionBtn} title="Helpful" onClick={() => message.id && submitFeedback(message.id, 'helpful')}>
+                      <ThumbIcon filled={feedbackMap[message.id] === 'helpful'} />
+                    </button>
+                    <button type="button" className={styles.actionBtn} title="Not helpful" onClick={() => message.id && submitFeedback(message.id, 'not_helpful')}>
+                      <ThumbIcon filled={feedbackMap[message.id] === 'not_helpful'} />
+                    </button>
+                  </div>
+                )}
+
+                {rawData && rawData.id === message.id && (
+                  <div className={styles.rawData}>
+                    <h4>Raw data ({rawData.tables?.join(', ') || 'database'})</h4>
+                    <pre>{JSON.stringify(rawData.data, null, 2)}</pre>
+                    <button type="button" className={styles.actionBtn} onClick={() => setRawData(null)}>Close</button>
+                  </div>
+                )}
               </div>
             ))}
 
-            {pending && (
-              <div className={styles.botRow}>
-                <div className={styles.typing} role="status" aria-label="Assistant is checking the live data">
-                  <i /><i /><i />
-                </div>
+            {suggestions.length > 0 && !pending && (
+              <div className={styles.chips}>
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    className={styles.chip}
+                    onClick={() => ask(suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))
               </div>
             )}
-          </div>
 
-          {suggestions.length > 0 && !pending && (
-            <div className={styles.chips}>
-              {suggestions.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  className={styles.chip}
-                  onClick={() => ask(suggestion)}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          )}
+            <form
+              className={styles.composer}
+              onSubmit={(event) => { event.preventDefault(); ask(input); }}
+            >
+              <textarea
+                ref={inputRef}
+                rows={1}
+                maxLength={400}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    ask(input);
+                  }
+                }}
+                placeholder="Ask about visitors, finance, attendance…"
+                aria-label="Ask the workspace assistant"
+              />
+              <button type="submit" className={styles.send} disabled={pending || !input.trim()} title="Send">
+                <SendIcon />
+              </button>
+            </form>
 
-          <form
-            className={styles.composer}
-            onSubmit={(event) => { event.preventDefault(); ask(input); }}
-          >
-            <textarea
-              ref={inputRef}
-              rows={1}
-              maxLength={400}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  ask(input);
-                }
-              }}
-              placeholder="Ask about visitors, finance, attendance…"
-              aria-label="Ask the workspace assistant"
-            />
-            <button type="submit" className={styles.send} disabled={pending || !input.trim()} title="Send">
-              <SendIcon />
-            </button>
-          </form>
-
-          <footer className={styles.foot}>Read-only · your permissions apply · Ctrl+J to open · Esc to close</footer>
-        </section>
+            <footer className={styles.foot}>
+              Read-only · your permissions apply · Ctrl+J to open · Esc to close
+            </footer>
+          </section>
+        </div>
       )}
     </div>
   );

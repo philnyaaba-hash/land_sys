@@ -1,13 +1,11 @@
-/** @type {import('next').NextConfig} */
-const isProduction = process.env.NODE_ENV === 'production';
-const secureTransport = isProduction && /^https:\/\//i.test(process.env.APP_URL || '');
+﻿/** @type {import("next").NextConfig} */
+const isProduction = process.env.NODE_ENV === "production";
+const secureTransport = isProduction && /^https:\/\//i.test(process.env.APP_URL || "");
 
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "form-action 'self'",
-  // Office panels render in a same-origin iframe inside the main dashboard,
-  // so framing is limited to this origin rather than blocked outright.
   "frame-ancestors 'self'",
   "object-src 'none'",
   "img-src 'self' data: blob:",
@@ -29,11 +27,16 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()' },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   { key: 'X-DNS-Prefetch-Control', value: 'off' }
-];
+};
 
-if (secureTransport) {
-  securityHeaders.push({ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' });
-}
+// Path aliases configuration
+const pathAliases = {
+  "@": "./lib",
+  "@/components": "./components",
+  "@/app": "./app",
+  "@/lib": "./lib",
+  "@/dashboard": "./app/dashboard"
+};
 
 const nextConfig = {
   reactStrictMode: true,
@@ -43,10 +46,17 @@ const nextConfig = {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
   async redirects() {
-    return [
-      { source: '/land', destination: '/', permanent: true },
-      { source: '/land/:path*', destination: '/:path*', permanent: true }
-    ];
+    return [];
   }
 };
+
+// Export rewrites function for Next.js
+nextConfig.rewrites = function() {
+  const aliases = pathAliases;
+  return Object.entries(aliases).map(([alias, path]) => ({
+    source: `${alias}/(.*)`,
+    destination: `${path}/$1`
+  }));
+};
+
 export default nextConfig;

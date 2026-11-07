@@ -890,3 +890,15 @@ model LandWatch {
   @@unique([clientId, listingId])
   @@index([listingId])
 }
+
+model AssistantFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  messageId String
+  rating    String   // "helpful" | "not_helpful"
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([messageId])
+  @@index([rating])
+}

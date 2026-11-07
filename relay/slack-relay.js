@@ -14,6 +14,8 @@ const path = require('path');
 const tls = require('tls');
 const crypto = require('crypto');
 
+const { prisma } = require(path.join(__dirname, '..', 'lib', 'prisma.js'));
+
 loadEnv(path.join(__dirname, '.env'));
 loadEnv(path.join(__dirname, '..', '.env'));
 
@@ -55,6 +57,7 @@ const EVENT_LABELS = {
   expense: 'Expense recorded',
   reminder: 'Reminder sent',
   periodClose: 'Period closed',
+  dailyDigest: 'Daily digest',
   test: 'Test message'
 };
 
@@ -337,6 +340,71 @@ async function deliverWhatsApp(text) {
   }
 }
 
+/* ---------------- Daily digest ---------------- */
+
+async function buildDigestText() {
+  const now = new Date();
+  const today = new Date(Date.now());
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [
+    newLeads,
+    newSales,
+    paymentsReceived,
+    expensesRecorded,
+    expectedVisits
+  ] = await Promise.all([
+    prisma.landInquiry.count({ where: { createdAt: { gte: today } } }),
+    prisma.landReservation.count({ where: { createdAt: { gte: today }, status: 'CONFIRMED' } }),
+    prisma.payment.aggregate({ where: { createdAt: { gte: today }, status: 'PAID' }, _sum: { amount: true } }),
+    prisma.expense.count({ where: { createdAt: { gte: today } } }),
+    prisma.visit.count({ where: { status: 'EXPECTED', expectedArrival: { gte: today, lt: tomorrow } } })
+  ]);
+
+  const paidTotal = paymentsReceived._sum.amount || 0;
+
+  const lines = [
+    `*LandLedger Daily Digest — ${now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}*`,
+    `• New inquiries: ${newLeads}`,
+    `• New confirmed sales: ${newSales}`,
+    `• Payments received: GH₵ ${paidTotal.toLocaleString()}`,
+    `• Expenses recorded: ${expensesRecorded}`,
+    `• Expected visits today: ${expectedVisits}`
+  ];
+
+  return lines.join('\n');
+}
+
+async function deliverDailyDigest() {
+  const text = await buildDigestText();
+  const jobs = [];
+
+  if (SLACK_ENABLED) jobs.push({ name: 'slack', run: () => deliverSlack(text) });
+  if (EMAIL_ENABLED) {
+    const to = EMAIL_TO;
+    if (isEmail(to)) jobs.push({ name: 'email', run: () => deliverEmail(to, `Daily digest · ${new Date().toLocaleDateString()}`, text) });
+  }
+  if (WHATSAPP_ENABLED) jobs.push({ name: 'whatsapp', run: () => deliverWhatsApp(text) });
+
+  if (!jobs.length) throw new Error('No delivery channel is configured.');
+
+  const deliveries = {};
+  await Promise.all(jobs.map(async (job) => {
+    try {
+      await job.run();
+      deliveries[job.name] = 'sent';
+    } catch (err) {
+      deliveries[job.name] = 'failed';
+      console.error(new Date().toISOString() + ' ' + job.name + ' failed: ' + (err && err.message ? err.message : 'Unknown error'));
+    }
+  }));
+
+  const failed = Object.keys(deliveries).filter((name) => deliveries[name] !== 'sent');
+  return { deliveries, failed };
+}
+
 /* ---------------- Fan-out ---------------- */
 function subjectFor(payload) {
   const raw = payload.subject || label(payload.event);
@@ -353,6 +421,7 @@ async function fanOut(payload) {
   if (EMAIL_ENABLED) {
     const to = EMAIL_TO || String(payload.email || '').trim();
     if (isEmail(to)) jobs.push({ name: 'email', run: () => deliverEmail(to, subject, text) });
+    else console.warn(new Date().toISOString() + ' email skipped: no recipient on the message or EMAIL_TO.');
     else console.warn(new Date().toISOString() + ' email skipped: no recipient on the message or EMAIL_TO.');
   }
   if (WHATSAPP_ENABLED) jobs.push({ name: 'whatsapp', run: () => deliverWhatsApp(text) });
@@ -372,6 +441,10 @@ async function fanOut(payload) {
 
   const failed = Object.keys(deliveries).filter((name) => deliveries[name] !== 'sent');
   return { deliveries, failed };
+}
+
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ''));
 }
 
 function keyMatches(given) {
@@ -443,6 +516,23 @@ const server = http.createServer((req, res) => {
       channels: { slack: SLACK_ENABLED, email: EMAIL_ENABLED, whatsapp: WHATSAPP_ENABLED },
       slackMode: SLACK_ENABLED ? slackMode() : null
     }, origin);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/digest') {
+    if (!keyMatches(req.headers['x-workspace-key'])) {
+      send(res, 401, { ok: false, error: 'Invalid workspace key.' }, origin);
+      return;
+    }
+    deliverDailyDigest()
+      .then((result) => {
+        const status = result.failed.length === 0 ? 200 : (result.failed.length === Object.keys(result.deliveries).length ? 502 : 207);
+        send(res, status, { ok: true, partial: status === 207, deliveries: result.deliveries }, origin);
+      })
+      .catch((err) => {
+        const status = err instanceof RelayError ? err.status : 500;
+        send(res, status, { ok: false, error: err && err.message ? err.message : 'Digest error.' }, origin);
+      });
     return;
   }
 
