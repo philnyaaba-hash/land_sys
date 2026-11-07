@@ -1,4 +1,5 @@
 import LegacyApp from '../../components/LegacyApp';
+import WorkspaceAssistant from '../../components/assistant/workspace-assistant';
 
 export const metadata = {
   title: 'Workspace — LandLedger',
@@ -6,5 +7,10 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <LegacyApp />;
+  return (
+    <>
+      <LegacyApp />
+      <WorkspaceAssistant />
+    </>
+  );
 }

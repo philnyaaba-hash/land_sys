@@ -174,6 +174,129 @@ test('LLM adapter keeps the same answer contract', async () => {
   assert.equal(result.generatedBy, 'test-model');
 });
 
+test('parses client and storefront pipeline questions', async () => {
+  const { parseQuestion } = await load().then((loaded) => loaded.intents);
+
+  assert.deepEqual(pick(parseQuestion('How many clients do we have?')), { topic: 'clients', range: 'month' });
+  assert.deepEqual(pick(parseQuestion('Any new buyers this month?')), { topic: 'clients', range: 'month' });
+  assert.deepEqual(pick(parseQuestion('How many holdings are tracked?')), { topic: 'clients', range: 'month' });
+  assert.deepEqual(pick(parseQuestion('How is the reservation pipeline?')), { topic: 'pipeline', range: 'week' });
+  assert.deepEqual(pick(parseQuestion('Any new reservations this week?')), { topic: 'pipeline', range: 'week' });
+  assert.deepEqual(pick(parseQuestion('How many listings are published?')), { topic: 'pipeline', range: 'week' });
+});
+
+test('exposes route prompts only for permitted client and pipeline topics', async () => {
+  const { canUseTopic, assistantStatus } = await load().then((loaded) => loaded.intents);
+  const user = { name: 'Ama', permissions: ['client.view'] };
+
+  assert.equal(canUseTopic(user, 'clients'), true);
+  assert.equal(canUseTopic(user, 'pipeline'), false);
+
+  const status = assistantStatus(user);
+  assert.deepEqual(status.prompts.clients, [
+    'How many clients do we have?',
+    'Any new clients this month?',
+    'How many holdings are tracked?'
+  ]);
+  assert.equal(status.prompts.pipeline, undefined);
+  assert.equal(status.prompts.visitors, undefined);
+});
+
+test('formats client and pipeline answers', async () => {
+  const { clientAnswer, pipelineAnswer } = await load().then((loaded) => loaded.answers);
+
+  const client = clientAnswer({
+    label: 'this month',
+    total: 12,
+    newClients: 3,
+    holdings: 20,
+    linkedReservations: 5,
+    regions: [{ name: 'Greater Accra', count: 7 }]
+  });
+  assert.match(client, /12 clients on record, holding 20 land holdings\./);
+  assert.match(client, /3 new clients this month\./);
+  assert.match(client, /5 reservations linked to client files\./);
+  assert.match(client, /Greater Accra 7\./);
+
+  const pipeline = pipelineAnswer({
+    label: 'this week',
+    reservations: { PENDING: 2, CONFIRMED: 1, COMPLETED: 4, CANCELLED: 1 },
+    pendingValue: 45000,
+    newReservations: 3,
+    inquiries: { NEW: 5 },
+    published: 8,
+    featured: 2
+  });
+  assert.match(pipeline, /2 awaiting payment, 1 confirmed, 4 completed, 1 cancelled\./);
+  assert.match(pipeline, /GH₵ 45,000\.00 awaiting payment\./);
+  assert.match(pipeline, /3 new reservations this week\./);
+  assert.match(pipeline, /5 new inquiries from the storefront\./);
+  assert.match(pipeline, /8 published listings \(2 featured\)\./);
+});
+
+test('answers client questions from a stubbed database', async () => {
+  const { answerQuestion } = await load().then((loaded) => loaded.engine);
+  const db = {
+    clientProfile: {
+      count: async (arg) => (arg && arg.where && arg.where.createdAt ? 3 : 12),
+      groupBy: async () => [{ region: 'Greater Accra', _count: { _all: 7 } }]
+    },
+    landHolding: { count: async () => 20 },
+    landReservation: { count: async () => 5 }
+  };
+
+  const result = await answerQuestion({
+    question: 'How many clients do we have?',
+    user: { id: 'u1', name: 'Ama', permissions: ['client.view'] },
+    db,
+    now: NOW
+  });
+
+  assert.equal(result.topic, 'clients');
+  assert.match(result.answer, /12 clients on record/);
+  assert.match(result.answer, /3 new clients this month/);
+  assert.deepEqual(result.suggestions.slice(0, 1), ['How many clients do we have?']);
+});
+
+test('answers pipeline questions from a stubbed database', async () => {
+  const { answerQuestion } = await load().then((loaded) => loaded.engine);
+  const db = {
+    landReservation: {
+      groupBy: async () => [{ status: 'PENDING', _count: { _all: 2 } }, { status: 'CONFIRMED', _count: { _all: 1 } }],
+      aggregate: async () => ({ _sum: { amount: 45000 } }),
+      count: async () => 3
+    },
+    landInquiry: { groupBy: async () => [{ status: 'NEW', _count: { _all: 5 } }] },
+    landListing: { count: async ({ where }) => (where && where.featured ? 2 : 8) }
+  };
+
+  const result = await answerQuestion({
+    question: 'How is the reservation pipeline?',
+    user: { id: 'u1', name: 'Ama', permissions: ['land.view'] },
+    db,
+    now: NOW
+  });
+
+  assert.equal(result.topic, 'pipeline');
+  assert.match(result.answer, /2 awaiting payment, 1 confirmed, 0 completed\./);
+  assert.match(result.answer, /GH₵ 45,000\.00 awaiting payment\./);
+});
+
+test('restricted pipeline topics never touch the database', async () => {
+  const { answerQuestion } = await load().then((loaded) => loaded.engine);
+  const explodingDb = new Proxy({}, { get() { throw new Error('database should not be queried'); } });
+
+  const result = await answerQuestion({
+    question: 'How is the reservation pipeline?',
+    user: { id: 'u1', name: 'Ama', permissions: [] },
+    db: explodingDb,
+    now: NOW
+  });
+
+  assert.equal(result.data.restricted, true);
+  assert.match(result.answer, /does not include access to land storefront/i);
+});
+
 function pick(parsed) {
   return { topic: parsed.topic, range: parsed.range };
 }

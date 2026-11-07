@@ -1,6 +1,6 @@
 import { compare } from 'bcryptjs';
 import { NextResponse } from 'next/server';
-import { createSession, requireSameOrigin, setSessionCookie } from '../../../../lib/office-auth';
+import { createSession, recordAudit, requireSameOrigin, setSessionCookie } from '../../../../lib/office-auth';
 import { prisma } from '../../../../lib/prisma';
 import { checkRateLimit, clientIp } from '../../../../lib/rate-limit.mjs';
 
@@ -11,6 +11,20 @@ export const runtime = 'nodejs';
 const DUMMY_HASH = '$2b$10$RMXKmURNKhU3aM8lX1RKAePvns8ZxSRVtbYwSDFb/hOeroWhZtzg.';
 const LOGIN_WINDOW_MS = 5 * 60 * 1000;
 const LOGIN_ATTEMPT_LIMIT = 60;
+const FAILED_ATTEMPTS_BEFORE_LOCK = 5;
+// 1, 2, 4, 8 minutes, then capped at 15.
+const LOCKOUT_STEPS_MS = [60_000, 120_000, 240_000, 480_000, 900_000];
+
+function lockoutDurationMs(lockoutCount) {
+  const index = Math.max(lockoutCount - 1, 0);
+  return LOCKOUT_STEPS_MS[Math.min(index, LOCKOUT_STEPS_MS.length - 1)];
+}
+
+function audit(actorId, action, entityId, metadata) {
+  return recordAudit(prisma, actorId, action, 'user', entityId, metadata).catch(() => {
+    // An audit write must never block a sign-in response.
+  });
+}
 
 function unauthorized() {
   return NextResponse.json(
@@ -50,10 +64,12 @@ export async function POST(request) {
   const now = new Date();
   if (!user) {
     await compare(password, DUMMY_HASH);
+    await audit(null, 'auth.sign_in_failed', null, { email, reason: 'unknown_account' });
     return unauthorized();
   }
   if (user.status !== 'ACTIVE') {
     await compare(password, user.passwordHash);
+    await audit(user.id, 'auth.sign_in_failed', user.id, { reason: 'inactive_account' });
     return unauthorized();
   }
   if (user.lockoutUntil && user.lockoutUntil > now) {
@@ -66,24 +82,40 @@ export async function POST(request) {
   const matches = await compare(password, user.passwordHash);
   if (!matches) {
     const attempts = user.failedLoginAttempts + 1;
+    const locked = attempts >= FAILED_ATTEMPTS_BEFORE_LOCK;
+    let lockoutUntil = null;
+    let lockoutCount = user.lockoutCount;
+    if (locked) {
+      lockoutCount += 1;
+      lockoutUntil = new Date(now.getTime() + lockoutDurationMs(lockoutCount));
+    }
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        failedLoginAttempts: attempts >= 5 ? 0 : attempts,
-        lockoutUntil: attempts >= 5 ? new Date(now.getTime() + 15 * 60 * 1000) : null
+        failedLoginAttempts: locked ? 0 : attempts,
+        lockoutCount,
+        lockoutUntil
       }
     });
-    const locked = attempts >= 5;
-    return NextResponse.json(
-      { error: locked ? 'Too many failed attempts. Try again later.' : 'Email or password is incorrect.' },
-      {
-        status: locked ? 429 : 401,
-        headers: locked ? { 'retry-after': '900', 'cache-control': 'no-store' } : { 'cache-control': 'no-store' }
-      }
-    );
+    await audit(user.id, 'auth.sign_in_failed', user.id, { email, attempts, locked });
+    if (locked) {
+      await audit(user.id, 'auth.lockout', user.id, { email, minutes: Math.round((lockoutUntil - now) / 60_000) });
+      return NextResponse.json(
+        { error: 'Too many failed attempts. Try again later.' },
+        {
+          status: 429,
+          headers: { 'retry-after': String(Math.ceil((lockoutUntil - now) / 1000)), 'cache-control': 'no-store' }
+        }
+      );
+    }
+    return unauthorized();
   }
 
-  await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockoutUntil: null, lastLoginAt: now } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { failedLoginAttempts: 0, lockoutCount: 0, lockoutUntil: null, lastLoginAt: now }
+  });
+  await audit(user.id, 'auth.sign_in', user.id, {});
   const token = await createSession(user.id);
   const response = NextResponse.json(
     { ok: true, user: { id: user.id, name: user.name, email: user.email } },

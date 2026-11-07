@@ -1,6 +1,6 @@
 /* LandLedger — offline shell for the staff dashboard only.
    The public storefront is never cached or served offline: it stays live. */
-const VERSION = 'landledger-next-v13';
+const VERSION = 'landledger-next-v14';
 const SHELL_CACHE = VERSION + '-shell';
 const RUNTIME_CACHE = VERSION + '-runtime';
 const OFFLINE_PAGE = '/offline';
@@ -53,7 +53,8 @@ self.addEventListener('install', (event) => {
       await precacheBuildAssets(cache);
     })
   );
-  self.skipWaiting();
+  // No skipWaiting here: the new worker waits, the page offers a reload
+  // (components/OfflineBanner.jsx posts 'skipWaiting' when the user accepts).
 });
 
 self.addEventListener('activate', (event) => {
@@ -73,8 +74,12 @@ function isPrivate(pathname) {
   return pathname.startsWith('/api/') || pathname.startsWith('/office/');
 }
 
-function isStatic(pathname) {
-  return pathname.startsWith('/_next/static/') || pathname.startsWith('/assets/') || pathname.startsWith('/legacy/');
+function isBuildAsset(pathname) {
+  return pathname.startsWith('/_next/static/');
+}
+
+function isContentAsset(pathname) {
+  return pathname.startsWith('/assets/') || pathname.startsWith('/legacy/');
 }
 
 async function offlineFallback() {
@@ -115,6 +120,24 @@ async function cacheFirst(request) {
   }
 }
 
+// /legacy/ and /assets/ URLs are stable across deploys while their content
+// changes, so serve the cached copy immediately and refresh SHELL_CACHE in the
+// background — the next load picks up the new file.
+async function staleWhileRevalidate(request) {
+  const cached = await caches.match(request);
+  const refresh = fetch(request)
+    .then((response) => {
+      if (response.ok && response.type === 'basic') {
+        caches.open(SHELL_CACHE).then((cache) => cache.put(request, response.clone()));
+      }
+      return response;
+    })
+    .catch(() => null);
+  if (cached) return cached;
+  const fresh = await refresh;
+  return fresh || Response.error();
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -135,8 +158,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isStatic(url.pathname)) {
+  if (isBuildAsset(url.pathname)) {
     event.respondWith(cacheFirst(request));
+  } else if (isContentAsset(url.pathname)) {
+    event.respondWith(staleWhileRevalidate(request));
   }
 });
 
