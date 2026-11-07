@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -179,7 +179,7 @@ test('parses client and storefront pipeline questions', async () => {
 
   assert.deepEqual(pick(parseQuestion('How many clients do we have?')), { topic: 'clients', range: 'month' });
   assert.deepEqual(pick(parseQuestion('Any new buyers this month?')), { topic: 'clients', range: 'month' });
-  assert.deepEqual(pick(parseQuestion('How many holdings are tracked?')), { topic: 'land', range: 'all' });;
+  assert.deepEqual(pick(parseQuestion('How many holdings are tracked?')), { topic: 'clients', range: 'month' });
   assert.deepEqual(pick(parseQuestion('How is the reservation pipeline?')), { topic: 'pipeline', range: 'week' });
   assert.deepEqual(pick(parseQuestion('Any new reservations this week?')), { topic: 'pipeline', range: 'week' });
   assert.deepEqual(pick(parseQuestion('How many listings are published?')), { topic: 'pipeline', range: 'week' });

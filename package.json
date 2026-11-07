@@ -13,7 +13,6 @@
     "db:migrate": "prisma migrate deploy",
     "db:bootstrap-admin": "node scripts/bootstrap-admin.cjs",
     "db:seed-land": "node scripts/seed-land.cjs",
-    "db:seed-reports": "node scripts/seed-reports.cjs",
     "seed:demo": "node scripts/seed-demo-accounts.mjs"
   },
   "dependencies": {
