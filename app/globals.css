@@ -1,5 +1,5 @@
-/* ============================================================
-   LandLedger — Land Management System
+﻿/* ============================================================
+   LandLedger â€” Land Management System
    ============================================================ */
 
 :root {
@@ -125,10 +125,10 @@ h1, h2, h3, h4, p { margin: 0; }
 }
 
 /* ============================================================
-   Sidebar — Complete Redesign (Modern Polish)
+   Sidebar â€” Complete Redesign (Modern Polish)
    ============================================================ */
 
-/* Sidebar Base — Rich Background */
+/* Sidebar Base â€” Rich Background */
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -146,7 +146,7 @@ h1, h2, h3, h4, p { margin: 0; }
   display: none; /* Remove grid pattern - cleaner look */
 }
 
-/* Brand — Modern Card */
+/* Brand â€” Modern Card */
 .brand {
   padding: 10px 14px 30px;
   position: relative;
@@ -217,7 +217,7 @@ h1, h2, h3, h4, p { margin: 0; }
   letter-spacing: -0.02em;
 }
 
-/* Navigation — Modern Structure */
+/* Navigation â€” Modern Structure */
 .nav {
   flex: 1;
   overflow-y: auto;
@@ -225,7 +225,7 @@ h1, h2, h3, h4, p { margin: 0; }
   margin: 0 -10px;
 }
 
-/* Section — Modern Card Style */
+/* Section â€” Modern Card Style */
 .nav-section {
   border-radius: 14px;
   overflow: hidden;
@@ -361,7 +361,7 @@ h1, h2, h3, h4, p { margin: 0; }
   display: none;
 }
 
-/* Nav Items — Refined */
+/* Nav Items â€” Refined */
 .nav-section .nav-item {
   display: flex;
   align-items: center;
@@ -431,7 +431,7 @@ h1, h2, h3, h4, p { margin: 0; }
   text-overflow: ellipsis;
 }
 
-/* Badge & Count — Modern */
+/* Badge & Count â€” Modern */
 .nav-badge,
 .nav-count {
   font-size: 10.5px;
@@ -465,7 +465,7 @@ h1, h2, h3, h4, p { margin: 0; }
 }
 
 /* ============================================================
-   Sidebar Stats — Modern Cards
+   Sidebar Stats â€” Modern Cards
    ============================================================ */
 
 .sidebar-stats {
@@ -534,7 +534,7 @@ h1, h2, h3, h4, p { margin: 0; }
   letter-spacing: 0.05em;
 }
 
-/* Sidebar Activity — Modern */
+/* Sidebar Activity â€” Modern */
 
 .sidebar-activity {
   padding: 0 12px 16px;
@@ -634,7 +634,7 @@ h1, h2, h3, h4, p { margin: 0; }
   margin-top: 3px;
 }
 
-/* Sidebar foot — workspace identity */
+/* Sidebar foot â€” workspace identity */
 
 .sidebar-foot {
   flex: none;
@@ -3621,7 +3621,7 @@ body, .sidebar, .topbar, .card, .modal, .command-palette-window, .shortcuts-shee
   }
 }
 /* ============================================================
-   UI refresh — spacing, rhythm and button layout.
+   UI refresh â€” spacing, rhythm and button layout.
    Colours are untouched: every colour still comes from the tokens above.
    ============================================================ */
 #legacy-root { display: contents; }
@@ -3673,7 +3673,7 @@ body, .sidebar, .topbar, .card, .modal, .command-palette-window, .shortcuts-shee
 }
 
 /* ============================================================
-   Round 2 — plainer, more editorial UI. Same colour tokens.
+   Round 2 â€” plainer, more editorial UI. Same colour tokens.
    ============================================================ */
 :root {
   --font: var(--font-ui), "Segoe UI", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -3710,7 +3710,7 @@ body { font-size: 14px; line-height: 1.5; }
 .card, .kpi { border-color: var(--line-strong); box-shadow: none; }
 .kpi:hover { transform: none; box-shadow: none; }
 
-/* Tables: ledger style — rules, not fills */
+/* Tables: ledger style â€” rules, not fills */
 table.data { font-size: 14px; }
 table.data th {
   background: transparent; color: var(--muted); font-size: 13px; font-weight: 600;
@@ -3765,7 +3765,7 @@ table.data .strong { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
 
 /* ============================================================
-   Round 3 — record-payment picker, sidebar toggle, calmer type
+   Round 3 â€” record-payment picker, sidebar toggle, calmer type
    ============================================================ */
 
 /* ---- Typography: readable body and controls ---- */
@@ -3820,7 +3820,7 @@ table.data .strong { font-weight: 600; }
 .modal-foot { padding: 14px 24px; }
 
 /* ============================================================
-   Record a payment — search + table
+   Record a payment â€” search + table
    ============================================================ */
 .pay-picker { display: flex; flex-direction: column; gap: 12px; }
 
@@ -3982,7 +3982,7 @@ table.data .strong { font-weight: 600; }
 .pay-empty p { max-width: 320px; margin: 5px auto 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 
 /* ============================================================
-   Sidebar toggle — smooth open / close
+   Sidebar toggle â€” smooth open / close
    ============================================================ */
 .menu-btn {
   display: grid !important;
@@ -4038,7 +4038,7 @@ body.sidebar-collapsed .menu-btn svg { transform: scaleX(-1); }
   }
 }
 
-/* Sidebar section collapse — animate height instead of snapping */
+/* Sidebar section collapse â€” animate height instead of snapping */
 .nav-section-content {
   max-height: 440px;
   opacity: 1;
