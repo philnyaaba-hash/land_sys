@@ -22,7 +22,7 @@ async function fetchStats() {
     prisma.landInquiry.count({ where: { createdAt: { gte: wa } } }),
     prisma.landReservation.count({ where: { createdAt: { gte: wa } } }),
     prisma.landReservation.count({ where: { status: 'CONFIRMED', createdAt: { gte: wa } } }),
-    prisma.payment.aggregate({ where: { status: 'PAID', createdAt: { gte: ms } }, _sum: { amount: true } }),
+    prisma.payment.aggregate({ where: { receivedAt: { gte: ms } }, _sum: { amount: true } }),
     prisma.visit.count({ where: { status: 'EXPECTED', expectedArrival: { gte: t, lt: tm } } }),
     prisma.visit.count({ where: { status: 'CHECKED_IN' } }),
     prisma.user.count({ where: { status: 'ACTIVE' } }),
@@ -66,7 +66,7 @@ async function fetchTraffic() {
   const t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
   const tm = new Date(t.getTime() + 86400000);
   const [et, ci, cot, pa] = await Promise.all([
-    prisma.visit.findMany({ where: { status: 'EXPECTED', expectedArrival: { gte: t, lt: tm } }, include: { host: { select: { name: true } } }, orderBy: { expectedArrival: 'asc' }, take: 50 }),
+    prisma.visit.findMany({ where: { status: 'EXPECTED', expectedArrival: { gte: t, lt: tm } }, include: { visitor: { select: { fullName: true } }, host: { select: { name: true } } }, orderBy: { expectedArrival: 'asc' }, take: 50 }),
     prisma.visit.findMany({ where: { status: 'CHECKED_IN' }, include: { visitor: { select: { fullName: true } }, host: { select: { name: true } } }, orderBy: { checkedInAt: 'asc' }, take: 50 }),
     prisma.visit.count({ where: { status: 'CHECKED_OUT', checkedOutAt: { gte: t } } }),
     prisma.visit.count({ where: { status: 'AWAITING_APPROVAL' } })
@@ -82,8 +82,8 @@ async function fetchClients() {
     prisma.clientProfile.count(), prisma.clientProfile.count({ where: { createdAt: { gte: wa } } }),
     prisma.clientProfile.count({ where: { createdAt: { gte: ma } } }), prisma.landHolding.count(), prisma.landReservation.count()
   ]);
-  const recent = await prisma.clientProfile.findMany({ take: 10, orderBy: { createdAt: 'desc' }, select: { id: true, name: true, region: true, createdAt: true, _count: { select: { holdings: true, inquiries: true } } } });
-  return { tc, nw, nm, h, r, recent };
+  const recent = await prisma.clientProfile.findMany({ take: 10, orderBy: { createdAt: 'desc' }, select: { id: true, companyName: true, region: true, createdAt: true, user: { select: { name: true } }, _count: { select: { holdings: true, reservations: true } } } });
+  return { tc, nw, nm, h, r, recentClients: recent };
 }
 
 export default async function DashboardPage() {

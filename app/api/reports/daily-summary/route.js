@@ -22,7 +22,7 @@ export async function GET(request) {
     prisma.landInquiry.count({ where: { createdAt: { gte: today, lt: tomorrow } } }),
     prisma.landReservation.count({ where: { createdAt: { gte: today, lt: tomorrow }, status: 'CONFIRMED' } }),
     prisma.payment.aggregate({
-      where: { createdAt: { gte: today, lt: tomorrow }, status: 'PAID' },
+      where: { receivedAt: { gte: today, lt: tomorrow } },
       _sum: { amount: true }
     }),
     prisma.expense.count({ where: { createdAt: { gte: today, lt: tomorrow } } }),
