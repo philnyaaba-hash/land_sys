@@ -82,7 +82,7 @@ test('formats counts, money, and attendance answers', async () => {
 
   assert.equal(formatCount(1, 'visit'), '1 visit');
   assert.equal(formatCount(2, 'visit'), '2 visits');
-  assert.equal(formatMoney(1234.5), 'GHâ‚µ 1,234.50');
+  assert.equal(formatMoney(1234.5), 'GH₵ 1,234.50');
 
   const answer = attendanceAnswer({
     canViewAll: false,
@@ -107,8 +107,8 @@ test('formats a visitor snapshot with names and counts', async () => {
   });
 
   assert.match(answer, /2 visitors on site right now/);
-  assert.match(answer, /Ama Mensah â€” host Kofi Boateng, in since 09:12/);
-  assert.match(answer, /â€¦and 1 more\./);
+  assert.match(answer, /Ama Mensah — host Kofi Boateng, in since 09:12/);
+  assert.match(answer, /…and 1 more\./);
   assert.match(answer, /1 visit awaiting approval/);
   assert.match(answer, /5 visits recorded today/);
 });
@@ -228,7 +228,7 @@ test('formats client and pipeline answers', async () => {
     featured: 2
   });
   assert.match(pipeline, /2 awaiting payment, 1 confirmed, 4 completed, 1 cancelled\./);
-  assert.match(pipeline, /GHâ‚µ 45,000\.00 awaiting payment\./);
+  assert.match(pipeline, /GH₵ 45,000\.00 awaiting payment\./);
   assert.match(pipeline, /3 new reservations this week\./);
   assert.match(pipeline, /5 new inquiries from the storefront\./);
   assert.match(pipeline, /8 published listings \(2 featured\)\./);
@@ -279,7 +279,7 @@ test('answers pipeline questions from a stubbed database', async () => {
 
   assert.equal(result.topic, 'pipeline');
   assert.match(result.answer, /2 awaiting payment, 1 confirmed, 0 completed\./);
-  assert.match(result.answer, /GHâ‚µ 45,000\.00 awaiting payment\./);
+  assert.match(result.answer, /GH₵ 45,000\.00 awaiting payment\./);
 });
 
 test('restricted pipeline topics never touch the database', async () => {

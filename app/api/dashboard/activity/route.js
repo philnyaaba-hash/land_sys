@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/prisma';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,17 +30,17 @@ export async function GET() {
       _count: { id: true }
     }),
     prisma.payment.groupBy({
-      by: ['createdAt'],
-      where: { status: 'PAID', createdAt: { gte: dateRanges[0].start } },
+      by: ['receivedAt'],
+      where: { receivedAt: { gte: dateRanges[0].start } },
       _sum: { amount: true }
     })
   ]);
 
-  const bucket = (records, key = '_count') => {
+  const bucket = (records, key = '_count', dateField = 'createdAt') => {
     const map = {};
     dateRanges.forEach(({ label }) => { map[label] = 0; });
     records.forEach((r) => {
-      const day = new Date(r.createdAt).toLocaleDateString(undefined, { weekday: 'short' });
+      const day = new Date(r[dateField]).toLocaleDateString(undefined, { weekday: 'short' });
       if (map[day] !== undefined) {
         map[day] += key === '_sum' ? (r._sum.amount || 0) : (r._count.id || 0);
       }
@@ -52,6 +52,6 @@ export async function GET() {
     labels: dateRanges.map((d) => d.label),
     inquiries: bucket(inquiries),
     reservations: bucket(reservations),
-    payments: bucket(payments, '_sum')
+    payments: bucket(payments, '_sum', 'receivedAt')
   });
 }
